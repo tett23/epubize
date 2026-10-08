@@ -326,6 +326,23 @@ mod tests {
         }
     }
 
+    #[test]
+    fn uses_configured_crawler_path_over_auto_detection() {
+        let settings = Settings {
+            crawler_path: Some("/opt/example/novel-crawler".into()),
+            ..Settings::default()
+        };
+        assert_eq!(
+            crawler(&settings).unwrap().program(),
+            std::path::Path::new("/opt/example/novel-crawler")
+        );
+        // 指定がなければ自動で探したものになる。見つかるかは環境による
+        assert_eq!(
+            crawler(&Settings::default()).map(|c| c.program().to_owned()),
+            ProcessCrawler::find().map(|c| c.program().to_owned())
+        );
+    }
+
     #[tokio::test(start_paused = true)]
     async fn requeue_all_queues_tables_of_contents_for_every_subscription() {
         let dir = tempfile::tempdir().unwrap();
