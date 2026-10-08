@@ -528,6 +528,54 @@ mod tests {
     }
 
     #[test]
+    fn rejects_ids_that_are_neither_strings_nor_numbers() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(FILENAME);
+        fs::write(&path, r#"{"subscribe": {"narou": ["n0001aa", null]}}"#).unwrap();
+        let error = list(&path).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "novels.json の形が正しくありません: subscribe.narou に文字列でも数値でもない値があります"
+        );
+    }
+
+    #[test]
+    fn treats_missing_subscribe_key_as_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(FILENAME);
+        fs::write(&path, r#"{"sendToKindle": {}}"#).unwrap();
+        assert!(list(&path).unwrap().is_empty());
+        assert!(!remove(&path, &sub(Site::Narou, "n0001aa")).unwrap());
+
+        // 加えると subscribe を作り、ほかのキーは残す
+        add(&path, sub(Site::Narou, "n0001aa")).unwrap();
+        let root: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(root["subscribe"]["narou"], serde_json::json!(["n0001aa"]));
+        assert_eq!(root["sendToKindle"], serde_json::json!({}));
+    }
+
+    #[test]
+    fn error_messages_explain_the_problem() {
+        assert_eq!(
+            Subscription::from_url("https://example.com/")
+                .unwrap_err()
+                .to_string(),
+            "対応していない URL です: https://example.com/"
+        );
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(FILENAME);
+        fs::write(&path, "{ not json").unwrap();
+        assert!(
+            list(&path)
+                .unwrap_err()
+                .to_string()
+                .starts_with("novels.json を JSON として読めません:")
+        );
+        // ディレクトリはファイルとして読めない
+        assert!(matches!(list(dir.path()), Err(Error::Io(_))));
+    }
+
+    #[test]
     fn removes_subscription_and_backs_up() {
         let dir = tempfile::tempdir().unwrap();
         let path = write_sample(dir.path());

@@ -198,6 +198,25 @@ mod tests {
     }
 
     #[test]
+    fn sits_next_to_subscriptions() {
+        let path = default_path(Environment::Development).unwrap();
+        assert!(path.ends_with("epubize/development/settings.json"));
+        assert_eq!(
+            path.parent(),
+            crate::subscriptions::default_path(Environment::Development)
+                .unwrap()
+                .parent()
+        );
+    }
+
+    #[test]
+    fn reports_unreadable_path() {
+        let dir = tempfile::tempdir().unwrap();
+        // ディレクトリはファイルとして読めない
+        assert!(load(dir.path()).is_err());
+    }
+
+    #[test]
     fn rejects_broken_file() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join(FILENAME);

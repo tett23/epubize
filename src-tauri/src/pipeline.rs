@@ -151,6 +151,37 @@ mod tests {
     }
 
     #[test]
+    fn episode_without_follow_up_does_not_queue_images() {
+        let mut conn = database();
+        import(
+            &mut conn,
+            &Request::new(Command::Toc, NOVEL_URL, false),
+            &toc_output(),
+        )
+        .unwrap();
+        let output = fixtures::episode(1, &["https://example.com/a.png"]);
+        let next = import(
+            &mut conn,
+            &Request::new(Command::Episode, episode_url(1), false),
+            &output,
+        )
+        .unwrap();
+        assert!(next.is_empty());
+    }
+
+    #[test]
+    fn rejects_toc_for_unsupported_url() {
+        let mut conn = database();
+        let error = import(
+            &mut conn,
+            &Request::new(Command::Toc, "https://example.com/novel/1", true),
+            &toc_output(),
+        )
+        .unwrap_err();
+        assert!(error.contains("対応していない URL"), "{error}");
+    }
+
+    #[test]
     fn rejects_output_that_does_not_match_the_schema() {
         let mut conn = database();
         let error = import(

@@ -149,6 +149,24 @@ mod tests {
     }
 
     #[test]
+    fn errors_explain_the_cause() {
+        let newer = Error::from(migrate::Error::NewerThanApp {
+            database: 3,
+            app: 1,
+        });
+        assert_eq!(
+            newer.to_string(),
+            "database version 3 is newer than the latest migration 1"
+        );
+        assert!(std::error::Error::source(&newer).is_some());
+
+        // 開けない場所（ファイルのあるべき所がディレクトリ）
+        let dir = tempfile::tempdir().unwrap();
+        let error = open(dir.path()).unwrap_err();
+        assert!(!error.to_string().is_empty());
+    }
+
+    #[test]
     fn remove_ignores_missing_files() {
         let dir = tempfile::tempdir().unwrap();
         remove(&dir.path().join(FILENAME)).unwrap();

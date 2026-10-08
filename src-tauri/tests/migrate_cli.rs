@@ -117,3 +117,50 @@ fn rejects_db_flag_without_path() {
     let output = Command::new(BIN).args(["up", "--db"]).output().unwrap();
     assert!(!output.status.success());
 }
+
+#[test]
+fn status_lists_pending_migrations() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("epubize.sqlite3");
+    // 版 0 の空のデータベース
+    drop(rusqlite::Connection::open(&db).unwrap());
+    let output = run(&db, &["status"]);
+    assert!(output.status.success());
+    let out = stdout(&output);
+    assert!(out.contains("version: 0 /"), "{out}");
+    assert!(out.contains("pending 0001_create_tables"), "{out}");
+}
+
+#[test]
+fn reads_database_path_from_environment() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("from-env.sqlite3");
+    let output = Command::new(BIN)
+        .arg("up")
+        .env("EPUBIZE_DB", &db)
+        .env_remove("EPUBIZE_ENV")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(stdout(&output).contains(&db.display().to_string()));
+    assert!(db.exists());
+}
+
+#[test]
+fn rejects_unknown_environment() {
+    let output = Command::new(BIN)
+        .arg("status")
+        .env_remove("EPUBIZE_DB")
+        .env("EPUBIZE_ENV", "staging")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("EPUBIZE_ENV must be development or production")
+    );
+}

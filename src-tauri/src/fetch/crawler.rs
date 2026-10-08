@@ -350,6 +350,29 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn reports_stderr_when_crawler_fails_without_error_record() {
+        let dir = tempfile::tempdir().unwrap();
+        let script = dir.path().join("crawler");
+        std::fs::write(&script, "#!/bin/sh\necho 'something broke' >&2\nexit 3\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let err = ProcessCrawler::new(&script)
+            .crawl(&Request::new(
+                Command::Image,
+                "https://example.com/a.png",
+                false,
+            ))
+            .await
+            .unwrap_err();
+        assert_eq!(err.kind, ErrorKind::Crawler);
+        assert!(err.message.contains("something broke"), "{}", err.message);
+        assert!(err.to_string().starts_with("Crawler: "), "{err}");
+    }
+
+    #[tokio::test]
     async fn reports_missing_program() {
         let crawler = ProcessCrawler::new("/nonexistent/crawler");
         let err = crawler
