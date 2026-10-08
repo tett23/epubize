@@ -207,6 +207,7 @@ async fn shows_and_saves_settings() {
     let crawler = executable(dir.path());
     let settings = Settings {
         crawler_path: Some(crawler.clone()),
+        epub_builder_path: Some(crawler.clone()),
         schedule: crate::settings::ScheduleSettings {
             enabled: true,
             at: "05:15".into(),
@@ -221,6 +222,7 @@ async fn shows_and_saves_settings() {
     let view = get_settings(app.state());
     assert_eq!(view.settings, settings);
     assert_eq!(view.crawler_in_use.as_deref(), Some(crawler.as_str()));
+    assert_eq!(view.epub_builder_in_use.as_deref(), Some(crawler.as_str()));
 }
 
 #[tokio::test]

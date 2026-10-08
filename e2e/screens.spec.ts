@@ -195,3 +195,43 @@ test("外部のリンクは、アプリの中では開かず既定のブラウ�
     .toMatchObject({ url: "https://ncode.syosetu.com/n0001aa/" });
   await expect(page).toHaveURL("http://localhost:1420/");
 });
+
+test.describe("管理画面の epub-builder", () => {
+  test("見つからなければそう出し、指定して保存すると使用中に出す", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    const section = page.getByRole("region").or(page.locator("section")).filter({ hasText: "EPUB を作るときに" });
+    await expect(section.getByText("見つかりません")).toHaveCount(2);
+
+    await page.getByLabel("epub-builder の実行ファイル").fill("/usr/local/bin/epub-builder");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByRole("status")).toHaveText("保存しました");
+    await expect(section.getByText("/usr/local/bin/epub-builder")).toBeVisible();
+    const saved = await page.evaluate(
+      () =>
+        (window as unknown as { __epubize: { state: { settings: { epubBuilderPath: string | null } } } }).__epubize
+          .state.settings.epubBuilderPath,
+    );
+    expect(saved).toBe("/usr/local/bin/epub-builder");
+  });
+
+  test("実行できないパスは保存しない", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    await page.getByLabel("epub-builder の実行ファイル").fill("/nonexistent/epub-builder");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByRole("alert")).toContainText("epub-builder の実行ファイルが見つからないか、実行できません");
+  });
+
+  test("自動で見つかるものがあれば、欄の案内と使用中に出す", async ({ page }) => {
+    await installBackend(page, { ...defaultState(), epubBuilderFound: "/usr/local/bin/epub-builder" });
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    await expect(page.getByLabel("epub-builder の実行ファイル")).toHaveAttribute(
+      "placeholder",
+      "/usr/local/bin/epub-builder",
+    );
+  });
+});

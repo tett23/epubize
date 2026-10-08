@@ -57,7 +57,7 @@ describe("コマンドの引数", () => {
 
   it("設定は settings で包んで渡す", async () => {
     invoke.mockResolvedValue(null);
-    const settings = { crawlerPath: null, schedule: { enabled: true, at: "03:00" } };
+    const settings = { crawlerPath: null, epubBuilderPath: null, schedule: { enabled: true, at: "03:00" } };
     await saveSettings(settings);
     expect(invoke).toHaveBeenCalledWith("save_settings", { settings });
   });

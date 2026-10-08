@@ -91,6 +91,7 @@ const inputClass =
 
 function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => void }) {
   const [crawlerPath, setCrawlerPath] = useState(view.settings.crawlerPath ?? "");
+  const [epubBuilderPath, setEpubBuilderPath] = useState(view.settings.epubBuilderPath ?? "");
   const [enabled, setEnabled] = useState(view.settings.schedule.enabled);
   const [at, setAt] = useState(view.settings.schedule.at);
   const [saving, setSaving] = useState(false);
@@ -98,6 +99,7 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
 
   useEffect(() => {
     setCrawlerPath(view.settings.crawlerPath ?? "");
+    setEpubBuilderPath(view.settings.epubBuilderPath ?? "");
     setEnabled(view.settings.schedule.enabled);
     setAt(view.settings.schedule.at);
   }, [view]);
@@ -108,6 +110,7 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
     try {
       await saveSettings({
         crawlerPath: crawlerPath.trim() === "" ? null : crawlerPath.trim(),
+        epubBuilderPath: epubBuilderPath.trim() === "" ? null : epubBuilderPath.trim(),
         schedule: { enabled, at },
       });
       setMessage({ kind: "info", text: "保存しました" });
@@ -127,22 +130,25 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
         </p>
       )}
       <Section title="クローラー">
-        <label className="block space-y-1">
-          <span className="text-sm">実行ファイル</span>
-          <input
-            type="text"
-            value={crawlerPath}
-            onChange={(e) => setCrawlerPath(e.target.value)}
-            placeholder={view.crawlerFound ?? "空欄なら PATH などから自動で探します"}
-            className={`w-full ${inputClass}`}
-          />
-        </label>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm text-neutral-600 dark:text-neutral-400">
-          <dt>使用中</dt>
-          <dd className="break-all">{view.crawlerInUse ?? "見つかりません"}</dd>
-          <dt>自動で見つかるもの</dt>
-          <dd className="break-all">{view.crawlerFound ?? "見つかりません"}</dd>
-        </dl>
+        <ExecutableField
+          name="クローラー"
+          value={crawlerPath}
+          onChange={setCrawlerPath}
+          inUse={view.crawlerInUse}
+          found={view.crawlerFound}
+        />
+      </Section>
+      <Section title="epub-builder">
+        <ExecutableField
+          name="epub-builder "
+          value={epubBuilderPath}
+          onChange={setEpubBuilderPath}
+          inUse={view.epubBuilderInUse}
+          found={view.epubBuilderFound}
+        />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          EPUB を作るときに子プロセスとして起動します。EPUB の生成はまだ実装していません。
+        </p>
       </Section>
       <Section title="定期取得">
         <label className="flex items-center gap-2">
@@ -178,6 +184,43 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
         )}
       </div>
     </form>
+  );
+}
+
+/** 実行ファイルの指定。空欄なら自動で探す。いま使っているものと、自動で見つかるものを出す */
+function ExecutableField({
+  name,
+  value,
+  onChange,
+  inUse,
+  found,
+}: {
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  inUse: string | null;
+  found: string | null;
+}) {
+  return (
+    <>
+      <label className="block space-y-1">
+        <span className="text-sm">実行ファイル</span>
+        <input
+          type="text"
+          aria-label={`${name}の実行ファイル`}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={found ?? "空欄なら PATH などから自動で探します"}
+          className={`w-full ${inputClass}`}
+        />
+      </label>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm text-neutral-600 dark:text-neutral-400">
+        <dt>使用中</dt>
+        <dd className="break-all">{inUse ?? "見つかりません"}</dd>
+        <dt>自動で見つかるもの</dt>
+        <dd className="break-all">{found ?? "見つかりません"}</dd>
+      </dl>
+    </>
   );
 }
 

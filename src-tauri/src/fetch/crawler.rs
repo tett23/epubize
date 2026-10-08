@@ -122,6 +122,15 @@ fn fallback_dirs() -> Vec<PathBuf> {
 }
 
 /// `dirs` の順に、`name` という実行できるファイルを探す
+/// `name` という実行ファイルを、PATH から、それでもなければよく使う場所から探す。
+/// クローラーと epub-builder で共通に使う（ADR 0018、ADR 0024）
+pub fn find_executable(name: &str) -> Option<PathBuf> {
+    let path_dirs = std::env::var_os("PATH")
+        .map(|paths| std::env::split_paths(&paths).collect::<Vec<_>>())
+        .unwrap_or_default();
+    find_program(name, path_dirs.into_iter().chain(fallback_dirs()))
+}
+
 fn find_program(name: &str, dirs: impl IntoIterator<Item = PathBuf>) -> Option<PathBuf> {
     dirs.into_iter()
         .map(|dir| dir.join(name))
@@ -163,10 +172,7 @@ impl ProcessCrawler {
         if let Some(path) = std::env::var_os("EPUBIZE_CRAWLER").filter(|v| !v.is_empty()) {
             return Some(Self::new(path));
         }
-        let path_dirs = std::env::var_os("PATH")
-            .map(|paths| std::env::split_paths(&paths).collect::<Vec<_>>())
-            .unwrap_or_default();
-        find_program(CRAWLER_NAME, path_dirs.into_iter().chain(fallback_dirs())).map(Self::new)
+        find_executable(CRAWLER_NAME).map(Self::new)
     }
 
     pub fn program(&self) -> &std::path::Path {

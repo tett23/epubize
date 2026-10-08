@@ -139,6 +139,8 @@ export function onScheduledFetch(listener: (result: { Ok: number } | { Err: stri
 export type Settings = {
   /** クローラーの実行ファイル。null なら自動で探す */
   crawlerPath: string | null;
+  /** epub-builder の実行ファイル。null なら自動で探す（ADR 0024） */
+  epubBuilderPath: string | null;
   schedule: { enabled: boolean; at: string };
 };
 
@@ -150,6 +152,10 @@ export type SettingsView = {
   crawlerInUse: string | null;
   /** 実行ファイルを指定しなかったときに自動で見つかるもの */
   crawlerFound: string | null;
+  /** いま使う epub-builder の実行ファイル */
+  epubBuilderInUse: string | null;
+  /** epub-builder を指定しなかったときに自動で見つかるもの */
+  epubBuilderFound: string | null;
   environment: string;
   subscriptionsPath: string;
   settingsPath: string;

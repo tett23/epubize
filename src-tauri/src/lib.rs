@@ -1,6 +1,7 @@
 mod commands;
 pub mod db;
 pub mod environment;
+pub mod epub;
 pub mod fetch;
 pub mod library;
 pub mod pipeline;

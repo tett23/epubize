@@ -37,6 +37,8 @@ impl Default for ScheduleSettings {
 pub struct Settings {
     /// クローラーの実行ファイル。null なら自動で探す（ADR 0018）
     pub crawler_path: Option<String>,
+    /// epub-builder の実行ファイル。null なら自動で探す（ADR 0021、ADR 0024）
+    pub epub_builder_path: Option<String>,
     /// 定期取得（ADR 0019）
     pub schedule: ScheduleSettings,
 }
@@ -46,21 +48,31 @@ impl Settings {
     pub fn validate(&self) -> Result<Schedule, String> {
         let at = NaiveTime::parse_from_str(&self.schedule.at, "%H:%M")
             .map_err(|_| format!("時刻は HH:MM で指定してください: {:?}", self.schedule.at))?;
-        if let Some(path) = &self.crawler_path {
-            if path.trim().is_empty() {
-                return Err("クローラーの実行ファイルが空です。自動で探すときは空欄ではなく未指定にしてください".into());
-            }
-            if !crate::fetch::crawler::is_executable(Path::new(path)) {
-                return Err(format!(
-                    "クローラーの実行ファイルが見つからないか、実行できません: {path}"
-                ));
-            }
-        }
+        validate_executable("クローラー", self.crawler_path.as_deref())?;
+        validate_executable("epub-builder ", self.epub_builder_path.as_deref())?;
         Ok(Schedule {
             enabled: self.schedule.enabled,
             at,
         })
     }
+}
+
+/// 指定された実行ファイルが、空でなく、実行できるか。未指定なら確かめない
+fn validate_executable(label: &str, path: Option<&str>) -> Result<(), String> {
+    let Some(path) = path else {
+        return Ok(());
+    };
+    if path.trim().is_empty() {
+        return Err(format!(
+            "{label}の実行ファイルが空です。自動で探すときは空欄ではなく未指定にしてください"
+        ));
+    }
+    if !crate::fetch::crawler::is_executable(Path::new(path)) {
+        return Err(format!(
+            "{label}の実行ファイルが見つからないか、実行できません: {path}"
+        ));
+    }
+    Ok(())
 }
 
 /// `~/.config/epubize/<環境>/settings.json`。購読の一覧（ADR 0014）と同じディレクトリに置く
@@ -147,7 +159,8 @@ mod tests {
         assert!(!with_suffix(&path, ".bak").exists());
 
         let second = Settings {
-            crawler_path: Some(crawler),
+            crawler_path: Some(crawler.clone()),
+            epub_builder_path: Some(crawler),
             schedule: ScheduleSettings {
                 enabled: false,
                 at: "04:30".into(),
@@ -189,6 +202,10 @@ mod tests {
             },
             Settings {
                 crawler_path: Some("  ".into()),
+                ..Settings::default()
+            },
+            Settings {
+                epub_builder_path: Some("/nonexistent/epub-builder".into()),
                 ..Settings::default()
             },
         ] {

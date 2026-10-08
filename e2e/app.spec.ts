@@ -69,7 +69,7 @@ test.describe("管理画面", () => {
     await installBackend(page);
     await page.goto("/");
     await page.getByRole("link", { name: "settings" }).click();
-    await page.getByLabel("実行ファイル").fill("/nonexistent/novel-crawler");
+    await page.getByLabel("クローラーの実行ファイル").fill("/nonexistent/novel-crawler");
     await page.getByRole("button", { name: "保存" }).click();
     await expect(page.getByRole("alert")).toContainText("クローラーの実行ファイルが見つからないか、実行できません");
     const saved = await page.evaluate(

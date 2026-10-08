@@ -33,7 +33,12 @@ type Episode = {
 
 export type BackendState = {
   crawlerFound: string | null;
-  settings: { crawlerPath: string | null; schedule: { enabled: boolean; at: string } };
+  epubBuilderFound?: string | null;
+  settings: {
+    crawlerPath: string | null;
+    epubBuilderPath?: string | null;
+    schedule: { enabled: boolean; at: string };
+  };
   subscriptions: { site: string; id: string; url: string }[];
   novels: (Novel & { description: string; episodes: Episode[] })[];
   bodies: Record<number, { body: string; images: Record<string, string> }>;
@@ -133,6 +138,8 @@ export async function installBackend(page: Page, state: BackendState = defaultSt
         loadError: state.settingsLoadError ?? null,
         crawlerInUse: state.settings.crawlerPath ?? state.crawlerFound,
         crawlerFound: state.crawlerFound,
+        epubBuilderInUse: state.settings.epubBuilderPath ?? state.epubBuilderFound ?? null,
+        epubBuilderFound: state.epubBuilderFound ?? null,
         environment: "development",
         subscriptionsPath: "/tmp/epubize/novels.json",
         settingsPath: "/tmp/epubize/settings.json",
@@ -143,6 +150,9 @@ export async function installBackend(page: Page, state: BackendState = defaultSt
         if (!/^\d{2}:\d{2}$/.test(next.schedule.at)) fail(`時刻は HH:MM で指定してください: "${next.schedule.at}"`);
         if (next.crawlerPath != null && !next.crawlerPath.startsWith("/usr/")) {
           fail(`クローラーの実行ファイルが見つからないか、実行できません: ${next.crawlerPath}`);
+        }
+        if (next.epubBuilderPath != null && !next.epubBuilderPath.startsWith("/usr/")) {
+          fail(`epub-builder の実行ファイルが見つからないか、実行できません: ${next.epubBuilderPath}`);
         }
         state.settings = next;
         return null;

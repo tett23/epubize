@@ -227,6 +227,10 @@ pub struct SettingsView {
     crawler_in_use: Option<String>,
     /// 実行ファイルを指定しなかったときに自動で見つかるもの
     crawler_found: Option<String>,
+    /// いま使う epub-builder の実行ファイル。見つからなければ null（ADR 0024）
+    epub_builder_in_use: Option<String>,
+    /// epub-builder を指定しなかったときに自動で見つかるもの
+    epub_builder_found: Option<String>,
     environment: String,
     subscriptions_path: String,
     settings_path: String,
@@ -244,6 +248,8 @@ pub fn get_settings(paths: State<'_, Paths>) -> SettingsView {
     SettingsView {
         crawler_in_use: crawler(&settings).map(|c| path(c.program())),
         crawler_found: ProcessCrawler::find().map(|c| path(c.program())),
+        epub_builder_in_use: crate::epub::epub_builder(&settings).map(|p| path(&p)),
+        epub_builder_found: crate::epub::find().map(|p| path(&p)),
         settings,
         load_error,
         environment: paths.env.to_string(),
@@ -307,6 +313,7 @@ mod tests {
         let schedule = RwLock::new(Schedule::default());
         let settings = Settings {
             crawler_path: Some(executable(dir.path())),
+            epub_builder_path: None,
             schedule: ScheduleSettings {
                 enabled: false,
                 at: "04:30".into(),
