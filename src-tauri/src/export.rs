@@ -559,8 +559,16 @@ fn toml_string(value: &str) -> String {
 /// 本文は 1 行が 1 段落になっている（ADR 0009）。removeEmptyLine が有効なら段落の余白をなくし、
 /// 行の間が空かないようにする。無効なら余白を指定せず、リーダーの既定の余白で段落の間を空ける。
 /// 作者の入れた空行（`<br>` だけの段落）は、どちらでも 1 行分残る
-/// 扉、目次、奥付のスタイル。縦書きと横書きの両方で使えるよう、論理プロパティで書く
+/// 見出し、扉、目次、奥付のスタイル。縦書きと横書きの両方で使えるよう、論理プロパティで書く。
+/// 話の題名の見出しは、本文より少し大きい程度に抑える。本と章の扉の題名は大きめにする
 const FRONT_AND_BACK_MATTER: &str = "\
+h1 {
+  font-size: 1.2em;
+  margin-block: 0 1em;
+}
+.titlepage h1, .chapter-title h1 {
+  font-size: 1.6em;
+}
 .titlepage {
   margin-block-start: 3em;
 }

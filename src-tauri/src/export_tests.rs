@@ -275,6 +275,9 @@ fn writes_titlepage_and_colophon() {
     );
     let css = read(dir.path().join("assets/style.css"));
     assert!(css.contains(".titlepage"));
+    // 話の題名の見出しは控えめにし、扉の題名だけを大きくする
+    assert!(css.contains("h1 {\n  font-size: 1.2em;"));
+    assert!(css.contains(".titlepage h1, .chapter-title h1 {\n  font-size: 1.6em;"));
     assert!(css.contains("ol.contents"));
     assert!(css.contains("dl.colophon"));
 
