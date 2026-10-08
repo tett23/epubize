@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/tett23/epubize/schema/crawler-output.v1.schema.json",
+  "title": "Crawler output v1 (one JSON Lines record)",
+  "description": "Each line a crawler writes to stdout is one record matching this schema. Readers must ignore unknown properties; adding properties does not change v. See docs/adr/0005-crawler-data-format.md.",
+  "type": "object",
+  "required": ["v", "type"],
+  "properties": {
+    "v": { "const": 1 },
+    "type": { "enum": ["novel", "toc_entry", "episode", "image", "error"] }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/novel" },
+    { "$ref": "#/$defs/tocEntry" },
+    { "$ref": "#/$defs/episode" },
+    { "$ref": "#/$defs/image" },
+    { "$ref": "#/$defs/error" }
+  ],
+  "$defs": {
+    "dateTime": {
+      "description": "ISO 8601 date-time with a UTC offset",
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullableDateTime": {
+      "oneOf": [{ "$ref": "#/$defs/dateTime" }, { "type": "null" }]
+    },
+    "absoluteUrl": { "type": "string", "pattern": "^https?://" },
+    "nullableString": { "type": ["string", "null"] },
+    "novel": {
+      "description": "Novel metadata. Emitted first by the toc command.",
+      "type": "object",
+      "required": ["v", "type", "site", "novelId", "url", "title", "author", "description", "episodeCount", "fetchedAt"],
+      "properties": {
+        "type": { "const": "novel" },
+        "site": { "description": "Site identifier assigned by the crawler", "type": "string", "minLength": 1 },
+        "novelId": { "description": "Site-local novel identifier", "type": "string", "minLength": 1 },
+        "url": { "$ref": "#/$defs/absoluteUrl" },
+        "title": { "type": "string" },
+        "author": {
+          "type": "object",
+          "required": ["name", "url"],
+          "properties": {
+            "name": { "type": "string" },
+            "url": { "oneOf": [{ "$ref": "#/$defs/absoluteUrl" }, { "type": "null" }] }
+          }
+        },
+        "description": { "type": "string" },
+        "episodeCount": { "type": "integer", "minimum": 0 },
+        "fetchedAt": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "tocEntry": {
+      "description": "One episode in the table of contents, in order. Emitted by the toc command after the novel record.",
+      "type": "object",
+      "required": ["v", "type", "novelUrl", "no", "url", "title", "chapter", "publishedAt", "revisedAt"],
+      "properties": {
+        "type": { "const": "toc_entry" },
+        "novelUrl": { "$ref": "#/$defs/absoluteUrl" },
+        "no": { "description": "1-based position in the TOC", "type": "integer", "minimum": 1 },
+        "url": { "description": "Episode URL; pass it to the episode command", "$ref": "#/$defs/absoluteUrl" },
+        "title": { "type": "string" },
+        "chapter": { "$ref": "#/$defs/nullableString" },
+        "publishedAt": { "$ref": "#/$defs/nullableDateTime" },
+        "revisedAt": { "description": "Last revision time when the site shows one; compare with a stored value to detect revisions", "$ref": "#/$defs/nullableDateTime" }
+      }
+    },
+    "episode": {
+      "description": "One episode's content. Emitted by the episode command.",
+      "type": "object",
+      "required": ["v", "type", "url", "title", "body", "preface", "afterword", "images", "charCount", "fetchedAt"],
+      "properties": {
+        "type": { "const": "episode" },
+        "url": { "description": "The URL given to the episode command, unchanged", "type": "string" },
+        "title": { "type": "string" },
+        "body": { "description": "CommonMark; see Markdown conventions in ADR 0005", "type": "string" },
+        "preface": { "$ref": "#/$defs/nullableString" },
+        "afterword": { "$ref": "#/$defs/nullableString" },
+        "images": {
+          "description": "Every image referenced from body, preface, or afterword, in order of first appearance; fetch each with the image command",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["url", "alt"],
+            "properties": {
+              "url": { "$ref": "#/$defs/absoluteUrl" },
+              "alt": { "type": "string" }
+            }
+          }
+        },
+        "charCount": { "description": "Unicode code points in the body's plain text", "type": "integer", "minimum": 0 },
+        "fetchedAt": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "image": {
+      "description": "One image's bytes. Emitted by the image command.",
+      "type": "object",
+      "required": ["v", "type", "url", "contentType", "data", "byteLength", "fetchedAt"],
+      "properties": {
+        "type": { "const": "image" },
+        "url": { "description": "The URL given to the image command, unchanged", "type": "string" },
+        "contentType": { "type": "string" },
+        "data": { "description": "Base64 (RFC 4648, with padding)", "type": "string", "contentEncoding": "base64" },
+        "byteLength": { "type": "integer", "minimum": 0 },
+        "fetchedAt": { "$ref": "#/$defs/dateTime" }
+      }
+    },
+    "error": {
+      "description": "A failed command. The process exits non-zero after writing it. The crawler never retries; the caller decides from kind.",
+      "type": "object",
+      "required": ["v", "type", "url", "kind", "message", "status"],
+      "properties": {
+        "type": { "const": "error" },
+        "url": { "type": "string" },
+        "kind": {
+          "enum": [
+            "unsupported_url",
+            "not_found",
+            "forbidden",
+            "rate_limited",
+            "server_error",
+            "http_error",
+            "network",
+            "parse_error"
+          ]
+        },
+        "message": { "type": "string" },
+        "status": { "description": "HTTP status when the failure was an HTTP response", "type": ["integer", "null"] }
+      }
+    }
+  }
+}
