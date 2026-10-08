@@ -75,6 +75,70 @@ fetch all で、購読している作品の目次と本文を取得する。管�
 作品のページの download epub で `~/Downloads` に EPUB ができれば、epub-builder まで動いている。
 話を一つ選んで send to Kindle を押し、Kindle に届けば準備は終わり。
 
+## クローラーとのインターフェース
+
+クローラーは同梱せず、次の取り決めに合うものを子プロセスとして起動する。
+取り決めは epubize の側が持ち([ADR 0005](docs/adr/0005-crawler-data-format.md))、
+レコードの形は JSON Schema の [schema/crawler-output.v1.schema.json](schema/crawler-output.v1.schema.json) にある。
+
+### 起動の仕方
+
+実行ファイルは、管理画面の指定、環境変数 `EPUBIZE_CRAWLER`、PATH などから探した `novel-crawler` の順に決める([ADR 0018](docs/adr/0018-import-and-database-backed-screens.md)、[ADR 0020](docs/adr/0020-settings-screen.md))。
+コマンド 1 回が 1 回の取得にあたり、引数で URL を一つ受け取る。
+
+| コマンド              | 標準出力に書くレコード                                     |
+| --------------------- | ---------------------------------------------------------- |
+| `toc <作品の URL>`    | `novel` を 1 行、続けて目次の順に `toc_entry` を 1 話 1 行 |
+| `episode <話の URL>`  | `episode` を 1 行                                          |
+| `image <画像の URL>`  | `image` を 1 行(画像のバイト列は base64)                 |
+
+- 標準出力に、1 行 1 レコードの JSON(JSON Lines)を書く。標準入力は使わない
+- 成功したら終了コード 0 で終わる。失敗したら `error` レコードを 1 行書き、0 以外の終了コードで終わる
+- `error` レコードを書かずに失敗したときは、標準エラー出力の内容を誤りとして画面に出す
+- 対応するサイトは `novel` の `site` で示す。いまは `narou`、`novel18`、`hameln`、`kakuyomu` を扱う
+
+### レコード
+
+どのレコードも、版 `v`(いまは `1`)と種類 `type` を持つ。epubize は知らない項目を無視するため、項目を足しても `v` は変わらない。
+項目を消したり意味を変えたりするときだけ `v` を上げる。日時は UTC からの時差を含む ISO 8601 で書く。
+
+| `type`      | 主な項目                                                                                                   |
+| ----------- | ---------------------------------------------------------------------------------------------------------- |
+| `novel`     | `site`、`novelId`、`url`、`title`、`author`(`name`、`url`)、`description`、`episodeCount`、`isConcluded`、`fetchedAt` |
+| `toc_entry` | `novelUrl`、`no`(1 始まり)、`url`、`title`、`chapter`、`publishedAt`、`revisedAt`                         |
+| `episode`   | `url`、`title`、`body`、`preface`、`afterword`、`images`(`url`、`alt`)、`charCount`、`fetchedAt`          |
+| `image`     | `url`、`contentType`、`data`(base64)、`byteLength`、`fetchedAt`                                           |
+| `error`     | `url`、`kind`、`message`、`status`(HTTP の状態コード)、`retryAfter`                                       |
+
+- `toc_entry` の `chapter` は章の名前で、章がなければ `null`。続く話で同じ名前なら、同じ章とみなす
+- `toc_entry` の `revisedAt` がサイトにあれば入れる。保存した値より新しければ、epubize は本文を取り直す
+- `episode` の `images` には、本文、前書き、後書きから参照する画像を、最初に現れた順に全て入れる。epubize は一つずつ `image` で取得する
+- epubize は、保存する前に全てのレコードを JSON Schema で確かめる
+
+### 本文の Markdown
+
+`body`、`preface`、`afterword` は CommonMark で、縦書きの本に向けて正規化して渡す([ADR 0005](docs/adr/0005-crawler-data-format.md)、[ADR 0009](docs/adr/0009-normalized-markdown-conventions.md))。
+epubize は同じ正規化を重ねず、そのまま EPUB に使う。
+
+- 元の 1 行を 1 つの段落にする。段落の間に 1 つだけある空行は消し、残す空行は `<br>` だけの段落で表す(空行は 2 つまで)
+- 括弧で始まらない段落の先頭に全角の空白を 1 つ入れる
+- ルビは `<ruby>親文字<rp>(</rp><rt>読み</rt><rp>)</rp></ruby>` で埋め込む。`｜漢字《かんじ》` のような記法は使わない
+- 傍点は `<span style="text-emphasis: sesame; -webkit-text-emphasis: sesame;">…</span>`、ほかの強調は `*…*`、太字は `**…**` で表す
+- 挿絵は `![代替テキスト](絶対 URL)` で表し、その URL を `images` に入れる
+- 本文にリンクは入れない
+- `charCount` は、本文をプレーンテキストにしたときの Unicode のコードポイントの数
+
+### 誤りと再試行
+
+クローラーは再試行しない。epubize が `error` の `kind` を見て決める([ADR 0015](docs/adr/0015-fetch-queue.md))。
+取得はホスト名ごとのキューで順に行い、1 回ごとに 5 秒あける。
+
+| `kind`                                                                   | epubize の扱い                                                             |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| `server_error`、`network`                                                | 同じホストのキューの末尾に積み直す。3 回まで                               |
+| `rate_limited`                                                           | `retryAfter` の日時まで(なければ 60 秒)そのホストを止め、先頭で取り直す |
+| `unsupported_url`、`not_found`、`forbidden`、`http_error`、`parse_error` | 取り直さない                                                               |
+
 ## 開発
 
 clone した後に一度、コミット済み ADR の変更を拒否する git の hook を有効にする(要 Deno)。
