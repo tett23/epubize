@@ -1,7 +1,8 @@
 import { Fragment } from "react";
+import { SendToKindleButton } from "../components/ExportButtons";
 import { ExternalLink } from "../components/ExternalLink";
 import { EpisodeTitle, novelPath } from "../components/links";
-import { ActionButton, ButtonGroup, InternalLink, PendingButton, SentMark } from "../components/ui";
+import { ActionButton, ButtonGroup, InternalLink, SentMark } from "../components/ui";
 import { latestEpisodes, refetchEpisode } from "../data";
 import { useLoad } from "../hooks";
 import { formatDateTime } from "../lib/format";
@@ -12,7 +13,7 @@ import { LoadError } from "./Root";
 const LIMIT = 100;
 
 export function Latest() {
-  const { data, error } = useLoad(() => latestEpisodes(LIMIT), []);
+  const { data, error, reload } = useLoad(() => latestEpisodes(LIMIT), []);
   if (error) {
     return <LoadError error={error} />;
   }
@@ -58,7 +59,9 @@ export function Latest() {
                     {item.episode.sentAt && <SentMark />}
                     <ButtonGroup>
                       <ActionButton action={() => refetchEpisode(item.episode.id)}>refetch</ActionButton>
-                      {item.episode.bodyFetchedAt && <PendingButton>send to Kindle</PendingButton>}
+                      {item.episode.bodyFetchedAt && (
+                        <SendToKindleButton scope={{ kind: "episode", id: item.episode.id }} onSent={reload} />
+                      )}
                     </ButtonGroup>
                   </div>
                 </td>

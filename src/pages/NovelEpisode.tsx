@@ -1,8 +1,9 @@
 import { useParams } from "react-router";
+import { DownloadEpubButton, DownloadZipButton, SendToKindleButton } from "../components/ExportButtons";
 import { ExternalLink } from "../components/ExternalLink";
 import { episodePath, novelPath } from "../components/links";
 import { NormalizeOptionsForm, useNormalizeOptions } from "../components/NormalizeOptionsForm";
-import { ActionButton, ButtonGroup, InternalLink, PendingButton, SentMark } from "../components/ui";
+import { ActionButton, ButtonGroup, InternalLink, SentMark } from "../components/ui";
 import { episodeDetail, novelDetail, refetchEpisode } from "../data";
 import { useLoad } from "../hooks";
 import { formatDate } from "../lib/format";
@@ -16,7 +17,7 @@ export function NovelEpisode() {
   const params = useParams();
   const novelId = Number(params.novelId);
   const episodeId = Number(params.episodeId);
-  const { data, error } = useLoad(
+  const { data, error, reload } = useLoad(
     () => Promise.all([novelDetail(novelId), episodeDetail(episodeId)]),
     [novelId, episodeId],
   );
@@ -30,10 +31,10 @@ export function NovelEpisode() {
   if (novel == null || episode == null || episode.novelId !== novel.id) {
     return <p>話が見つかりません。</p>;
   }
-  return <Episode novel={novel} episode={episode} />;
+  return <Episode novel={novel} episode={episode} reload={reload} />;
 }
 
-function Episode({ novel, episode }: { novel: NovelDetail; episode: EpisodeDetail }) {
+function Episode({ novel, episode, reload }: { novel: NovelDetail; episode: EpisodeDetail; reload: () => void }) {
   const normalize = useNormalizeOptions(novel.id, novel.normalizeOptions);
 
   return (
@@ -50,9 +51,14 @@ function Episode({ novel, episode }: { novel: NovelDetail; episode: EpisodeDetai
       </h3>
       <ButtonGroup>
         <ActionButton action={() => refetchEpisode(episode.id)}>refetch</ActionButton>
-        <PendingButton>download zip</PendingButton>
-        <PendingButton>download epub</PendingButton>
-        <PendingButton>send to Kindle</PendingButton>
+        {/* 本文を取得済みの話だけ */}
+        {episode.bodyFetchedAt && (
+          <>
+            <DownloadZipButton scope={{ kind: "episode", id: episode.id }} />
+            <DownloadEpubButton scope={{ kind: "episode", id: episode.id }} />
+            <SendToKindleButton scope={{ kind: "episode", id: episode.id }} onSent={reload} />
+          </>
+        )}
       </ButtonGroup>
       <p className="text-sm text-neutral-700 dark:text-neutral-300">
         {(episode.revisedAt ?? episode.publishedAt)

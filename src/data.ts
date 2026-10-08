@@ -135,6 +135,29 @@ export function onScheduledFetch(listener: (result: { Ok: number } | { Err: stri
   return listen<{ Ok: number } | { Err: string }>("scheduled-fetch", (event) => listener(event.payload));
 }
 
+/** 書き出す範囲。作品なら本文を取得済みの話の全て、話ならその話だけ（ADR 0029） */
+export type ExportScope = { kind: "novel"; id: number } | { kind: "episode"; id: number };
+
+/** EPUB 3.0 を作り、ダウンロードのディレクトリに書く。書いたパスを返す */
+export function downloadEpub(scope: ExportScope): Promise<string> {
+  return invoke<string>("download_epub", { scope });
+}
+
+/** epub-builder のプロジェクトを zip にして、ダウンロードのディレクトリに書く。書いたパスを返す */
+export function downloadZip(scope: ExportScope): Promise<string> {
+  return invoke<string>("download_zip", { scope });
+}
+
+/** EPUB 3.0 を作って Kindle に送る。送った話の数を返す */
+export function sendToKindle(scope: ExportScope): Promise<number> {
+  return invoke<number>("send_to_kindle", { scope });
+}
+
+/** 書き出したファイルを Finder で表示する */
+export function revealPath(path: string): Promise<void> {
+  return invoke("reveal_path", { path });
+}
+
 /** 管理画面で変える設定（ADR 0020） */
 export type Settings = {
   /** クローラーの実行ファイル。null なら自動で探す */

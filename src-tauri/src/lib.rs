@@ -2,6 +2,7 @@ mod commands;
 pub mod db;
 pub mod environment;
 pub mod epub;
+pub mod export;
 pub mod fetch;
 pub mod kindle;
 pub mod library;
@@ -39,6 +40,10 @@ pub fn run() {
             commands::episode_detail,
             commands::latest_episodes,
             commands::set_normalize_options,
+            commands::download_epub,
+            commands::download_zip,
+            commands::send_to_kindle,
+            commands::reveal_path,
         ])
         .setup(|app| {
             let env = Environment::current()?;
@@ -60,6 +65,9 @@ pub fn run() {
                 subscriptions,
                 settings: settings_path,
                 database: db_path,
+                downloads: dirs::download_dir()
+                    .or_else(dirs::home_dir)
+                    .ok_or("cannot determine the downloads directory")?,
             });
             app.manage(window_state::WindowStateStore::new(env));
             app.manage(commands::fetch_state(app.handle(), &current));

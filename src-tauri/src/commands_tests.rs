@@ -42,6 +42,7 @@ fn app(dir: &Path, crawler: bool) -> App<MockRuntime> {
         subscriptions: dir.join(subscriptions::FILENAME),
         settings: dir.join(settings::FILENAME),
         database: dir.join("epubize.sqlite3"),
+        downloads: dir.join("downloads"),
     });
     let crawler: Option<Arc<dyn Crawler>> =
         crawler.then(|| Arc::new(ProcessCrawler::new(executable(dir))) as Arc<dyn Crawler>);
@@ -314,4 +315,192 @@ async fn on_done_saves_results_queues_follow_ups_and_notifies() {
     assert!(parsed[2]["error"].as_str().unwrap().contains("not JSON"));
     // 失敗したものは何も積まない
     assert_eq!(queued(&app), 4);
+}
+
+/// 実行できる sh のスクリプトを作る
+fn script(dir: &Path, name: &str, body: &str) -> String {
+    let path = dir.join(name);
+    std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    path.to_string_lossy().into_owned()
+}
+
+/// `--output` の次の引数に、プロジェクトの 1 話目を書く偽の epub-builder
+const FAKE_EPUB_BUILDER: &str = "project=$2\nwhile [ \"$1\" != --output ]; do shift; done\ncat \"$project\"/body/*/0001.md \"$project\"/body/0001.md > \"$2\" 2>/dev/null\nexit 0";
+
+fn episode_ids(app: &App<MockRuntime>) -> Vec<i64> {
+    let database = app.state::<Database>();
+    let conn = database.0.lock().unwrap();
+    let mut stmt = conn.prepare("SELECT id FROM episodes ORDER BY no").unwrap();
+    stmt.query_map([], |row| row.get(0))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap()
+}
+
+#[tokio::test]
+async fn downloads_epub_and_zip_into_downloads() {
+    let dir = tempfile::tempdir().unwrap();
+    let app = app(dir.path(), false);
+    import_novel(&app);
+    let novel = list_novels(app.state()).unwrap()[0].id;
+    let scope = export::Scope::Novel(novel);
+
+    let settings = Settings {
+        epub_builder_path: Some(script(dir.path(), "epub-builder", FAKE_EPUB_BUILDER)),
+        ..Settings::default()
+    };
+    save_settings(settings, app.state(), app.state(), app.state()).unwrap();
+
+    let path = download_epub(scope, app.state(), app.state())
+        .await
+        .unwrap();
+    assert_eq!(
+        Path::new(&path),
+        dir.path().join("downloads/合成データの作品.epub")
+    );
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        "# 第1話\n\n　本文。\n\n---\n\n後書き\n"
+    );
+    // 同じ名前があれば番号を付ける
+    let again = download_epub(scope, app.state(), app.state())
+        .await
+        .unwrap();
+    assert!(again.ends_with("合成データの作品 (2).epub"), "{again}");
+
+    let zip = download_zip(
+        export::Scope::Episode(episode_ids(&app)[0]),
+        app.state(),
+        app.state(),
+    )
+    .unwrap();
+    assert!(
+        zip.ends_with("downloads/合成データの作品 第1話.zip"),
+        "{zip}"
+    );
+    let archive = zip::ZipArchive::new(std::fs::File::open(&zip).unwrap()).unwrap();
+    assert!(
+        archive
+            .file_names()
+            .any(|name| name == "合成データの作品 第1話/book.toml")
+    );
+
+    // 本文のない話は書き出せない
+    let unfetched = export::Scope::Episode(episode_ids(&app)[1]);
+    assert!(
+        download_epub(unfetched, app.state(), app.state())
+            .await
+            .is_err()
+    );
+    assert!(download_zip(unfetched, app.state(), app.state()).is_err());
+}
+
+#[tokio::test]
+async fn sends_epub_to_kindle_and_records_sent_time() {
+    let dir = tempfile::tempdir().unwrap();
+    let app = app(dir.path(), false);
+    import_novel(&app);
+    let novel = list_novels(app.state()).unwrap()[0].id;
+    let scope = export::Scope::Novel(novel);
+    let args = dir.path().join("args");
+    let env = dir.path().join("kindle.env");
+    std::fs::write(&env, "EMAIL=a@example.com\n").unwrap();
+    let settings = Settings {
+        epub_builder_path: Some(script(dir.path(), "epub-builder", FAKE_EPUB_BUILDER)),
+        send_to_kindle_path: Some(script(
+            dir.path(),
+            "send-to-kindle",
+            &format!(
+                "printf '%s\\n' \"$@\" > '{}'\ncat \"$3\" >> '{}'",
+                args.display(),
+                args.display()
+            ),
+        )),
+        send_to_kindle_env_path: Some(env.to_string_lossy().into_owned()),
+        ..Settings::default()
+    };
+    save_settings(settings.clone(), app.state(), app.state(), app.state()).unwrap();
+
+    assert_eq!(send_to_kindle(scope, app.state(), app.state()).await, Ok(1));
+    let sent = std::fs::read_to_string(&args).unwrap();
+    let lines: Vec<&str> = sent.lines().collect();
+    assert_eq!(lines[0], "--env-file");
+    assert_eq!(lines[1], env.to_string_lossy());
+    assert!(lines[2].ends_with("/合成データの作品.epub"), "{sent}");
+    assert_eq!(lines[3], "# 第1話");
+    let detail = novel_detail(novel, app.state()).unwrap().unwrap();
+    assert!(detail.episodes[0].sent_at.is_some());
+    assert!(detail.episodes[1].sent_at.is_none());
+
+    // 送れなければ、送った日時を記録しない
+    let fresh = tempfile::tempdir().unwrap();
+    let app = app_with_failing_sender(fresh.path(), settings);
+    import_novel(&app);
+    let novel = list_novels(app.state()).unwrap()[0].id;
+    let error = send_to_kindle(export::Scope::Novel(novel), app.state(), app.state())
+        .await
+        .unwrap_err();
+    assert!(error.contains("SMTP_PASSWORD"), "{error}");
+    let detail = novel_detail(novel, app.state()).unwrap().unwrap();
+    assert!(detail.episodes[0].sent_at.is_none());
+}
+
+/// `settings` の send-to-kindle を、設定が足りずに失敗するものに差し替えたアプリ
+fn app_with_failing_sender(dir: &Path, settings: Settings) -> App<MockRuntime> {
+    let app = app(dir, false);
+    let settings = Settings {
+        send_to_kindle_path: Some(script(
+            dir,
+            "failing",
+            "echo 'send-to-kindle: 次の設定がありません: SMTP_PASSWORD' >&2\nexit 1",
+        )),
+        ..settings
+    };
+    save_settings(settings, app.state(), app.state(), app.state()).unwrap();
+    app
+}
+
+#[tokio::test]
+async fn export_commands_need_executables() {
+    let dir = tempfile::tempdir().unwrap();
+    let app = app(dir.path(), false);
+    import_novel(&app);
+    let novel = list_novels(app.state()).unwrap()[0].id;
+    let scope = export::Scope::Novel(novel);
+    // 存在しない場所を指す設定を書き、自動で探したものを使わせない
+    std::fs::write(
+        dir.path().join(settings::FILENAME),
+        r#"{"epubBuilderPath":"/nonexistent/epub-builder","sendToKindlePath":"/nonexistent/send-to-kindle"}"#,
+    )
+    .unwrap();
+    let error = download_epub(scope, app.state(), app.state())
+        .await
+        .unwrap_err();
+    assert!(
+        error.starts_with("epub-builder を起動できません"),
+        "{error}"
+    );
+
+    std::fs::write(
+        dir.path().join(settings::FILENAME),
+        format!(
+            r#"{{"epubBuilderPath":{:?},"sendToKindlePath":"/nonexistent/send-to-kindle"}}"#,
+            script(dir.path(), "epub-builder", FAKE_EPUB_BUILDER)
+        ),
+    )
+    .unwrap();
+    let error = send_to_kindle(scope, app.state(), app.state())
+        .await
+        .unwrap_err();
+    assert!(
+        error.starts_with("send-to-kindle を起動できません"),
+        "{error}"
+    );
+    let detail = novel_detail(novel, app.state()).unwrap().unwrap();
+    assert!(detail.episodes[0].sent_at.is_none());
 }

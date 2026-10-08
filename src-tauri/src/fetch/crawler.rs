@@ -121,7 +121,19 @@ fn fallback_dirs() -> Vec<PathBuf> {
     dirs
 }
 
-/// `dirs` の順に、`name` という実行できるファイルを探す
+/// 子プロセスに渡す PATH。アプリの PATH の後に、よく使う場所と mise の shim を足す。
+/// Finder から起動したアプリの PATH には、`#!/usr/bin/env deno` のスクリプトが使う deno がないため（ADR 0029）
+pub fn child_path() -> std::ffi::OsString {
+    let mut dirs: Vec<PathBuf> = std::env::var_os("PATH")
+        .map(|paths| std::env::split_paths(&paths).collect())
+        .unwrap_or_default();
+    dirs.extend(fallback_dirs());
+    if let Some(home) = dirs::home_dir() {
+        dirs.push(home.join(".local/share/mise/shims"));
+    }
+    std::env::join_paths(dirs).unwrap_or_default()
+}
+
 /// `name` という実行ファイルを、PATH から、それでもなければよく使う場所から探す。
 /// クローラーと epub-builder で共通に使う（ADR 0018、ADR 0024）
 pub fn find_executable(name: &str) -> Option<PathBuf> {
@@ -186,6 +198,7 @@ impl Crawler for ProcessCrawler {
         command
             .arg(request.command.as_str())
             .arg(&request.url)
+            .env("PATH", child_path())
             .kill_on_drop(true);
         Box::pin(async move {
             let output = command

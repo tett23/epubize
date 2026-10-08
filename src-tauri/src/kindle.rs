@@ -52,6 +52,13 @@ pub fn env_example_path(settings: &Settings, data_dir: &Path) -> PathBuf {
     )
 }
 
+/// send-to-kindle に `-e` で渡す .env。指定がなく、既定の場所にもなければ渡さない（ADR 0028）。
+/// そのとき send-to-kindle は、カレントディレクトリの .env か環境変数から読む
+pub fn env_file(settings: &Settings, data_dir: &Path) -> Option<PathBuf> {
+    let path = env_path(settings, data_dir);
+    (settings.send_to_kindle_env_path.is_some() || path.is_file()).then_some(path)
+}
+
 fn configured_or(path: Option<&str>, data_dir: &Path, name: &str) -> PathBuf {
     path.map_or_else(|| data_dir.join(name), PathBuf::from)
 }
@@ -164,6 +171,26 @@ mod tests {
         )
         .unwrap();
         assert_eq!(check_env(&settings, dir.path()), Some(EnvCheck::Complete));
+    }
+
+    #[test]
+    fn passes_env_file_only_when_configured_or_present() {
+        let dir = tempfile::tempdir().unwrap();
+        assert_eq!(env_file(&Settings::default(), dir.path()), None);
+        std::fs::write(dir.path().join(".env"), "EMAIL=\n").unwrap();
+        assert_eq!(
+            env_file(&Settings::default(), dir.path()),
+            Some(dir.path().join(".env"))
+        );
+        // 指定したものは、なくても渡す。send-to-kindle がないことを誤りにする
+        let settings = Settings {
+            send_to_kindle_env_path: Some("/nonexistent/kindle.env".into()),
+            ..Settings::default()
+        };
+        assert_eq!(
+            env_file(&settings, dir.path()),
+            Some(PathBuf::from("/nonexistent/kindle.env"))
+        );
     }
 
     #[test]

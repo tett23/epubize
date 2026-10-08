@@ -8,6 +8,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use crate::db::Database;
 use crate::environment::Environment;
+use crate::export;
 use crate::fetch::crawler::{Command, Crawler, ProcessCrawler, Request};
 use crate::fetch::queue::Queues;
 use crate::fetch::{self, Fetcher};
@@ -23,6 +24,8 @@ pub struct Paths {
     pub subscriptions: PathBuf,
     pub settings: PathBuf,
     pub database: PathBuf,
+    /// download epub と download zip で書き出す場所（ADR 0029）
+    pub downloads: PathBuf,
 }
 
 /// データの置き場所を決めている環境。画面の見出しに出す
@@ -357,6 +360,7 @@ mod tests {
             subscriptions: dir.join(subscriptions::FILENAME),
             settings: dir.join(settings::FILENAME),
             database: dir.join("epubize.sqlite3"),
+            downloads: dir.join("downloads"),
         }
     }
 
@@ -547,6 +551,112 @@ pub fn set_normalize_options(
 ) -> Result<(), String> {
     let conn = database.0.lock().map_err(|e| e.to_string())?;
     query::set_normalize_options(&conn, novel_id, options.as_ref())
+}
+
+/// 書き出しと送信に使う設定。読めなければ既定値で動かす（起動時と同じ）
+fn current_settings(paths: &Paths) -> Settings {
+    settings::load(&paths.settings).unwrap_or_default()
+}
+
+/// 環境ごとのアプリ用データ領域。データベースと同じディレクトリ
+fn data_dir(paths: &Paths) -> &std::path::Path {
+    paths.database.parent().unwrap_or(std::path::Path::new(""))
+}
+
+fn load_book(database: &Database, scope: export::Scope) -> Result<export::Book, String> {
+    let conn = database.0.lock().map_err(|e| e.to_string())?;
+    export::load(&conn, scope)
+}
+
+fn epub_builder(settings: &Settings) -> Result<PathBuf, String> {
+    crate::epub::epub_builder(settings).ok_or_else(|| {
+        "epub-builder が見つかりません。管理画面で実行ファイルを指定してください".into()
+    })
+}
+
+fn temp_dir() -> Result<tempfile::TempDir, String> {
+    tempfile::Builder::new()
+        .prefix("epubize-")
+        .tempdir()
+        .map_err(|e| e.to_string())
+}
+
+/// 書き出したファイルの置き場所。なければ作る
+fn downloads(paths: &Paths) -> Result<&std::path::Path, String> {
+    std::fs::create_dir_all(&paths.downloads).map_err(|e| e.to_string())?;
+    Ok(&paths.downloads)
+}
+
+/// 作品か話の EPUB 3.0 を作り、ダウンロードのディレクトリに書く。書いたパスを返す（ADR 0029）
+#[tauri::command]
+pub async fn download_epub(
+    scope: export::Scope,
+    database: State<'_, Database>,
+    paths: State<'_, Paths>,
+) -> Result<String, String> {
+    let book = load_book(&database, scope)?;
+    let program = epub_builder(&current_settings(&paths))?;
+    let work = temp_dir()?;
+    let project = work.path().join("project");
+    export::write_project(&project, &book)?;
+    let output = export::unique_path(downloads(&paths)?, &export::file_name(&book.title), "epub");
+    export::build_epub(&program, &project, &output).await?;
+    Ok(output.to_string_lossy().into_owned())
+}
+
+/// 作品か話の epub-builder のプロジェクトを zip にして、ダウンロードのディレクトリに書く。書いたパスを返す
+#[tauri::command]
+pub fn download_zip(
+    scope: export::Scope,
+    database: State<'_, Database>,
+    paths: State<'_, Paths>,
+) -> Result<String, String> {
+    let book = load_book(&database, scope)?;
+    let stem = export::file_name(&book.title);
+    let work = temp_dir()?;
+    let project = work.path().join(&stem);
+    export::write_project(&project, &book)?;
+    let output = export::unique_path(downloads(&paths)?, &stem, "zip");
+    export::zip_dir(&project, &output)?;
+    Ok(output.to_string_lossy().into_owned())
+}
+
+/// 作品か話の EPUB 3.0 を作って Kindle に送り、送った話に日時を記録する。送った話の数を返す
+#[tauri::command]
+pub async fn send_to_kindle(
+    scope: export::Scope,
+    database: State<'_, Database>,
+    paths: State<'_, Paths>,
+) -> Result<usize, String> {
+    let book = load_book(&database, scope)?;
+    let settings = current_settings(&paths);
+    let builder = epub_builder(&settings)?;
+    let sender = crate::kindle::send_to_kindle(&settings)
+        .ok_or("send-to-kindle が見つかりません。管理画面で実行ファイルを指定してください")?;
+    let work = temp_dir()?;
+    let project = work.path().join("project");
+    export::write_project(&project, &book)?;
+    // 添付のファイルの名前が Kindle の側に見えるため、題名にする
+    let epub = work
+        .path()
+        .join(format!("{}.epub", export::file_name(&book.title)));
+    export::build_epub(&builder, &project, &epub).await?;
+    let env_file = crate::kindle::env_file(&settings, data_dir(&paths));
+    export::send_to_kindle(&sender, env_file.as_deref(), &epub).await?;
+
+    let ids: Vec<i64> = book.episodes.iter().map(|e| e.id).collect();
+    let mut conn = database.0.lock().map_err(|e| e.to_string())?;
+    export::mark_sent(&mut conn, &ids)?;
+    Ok(ids.len())
+}
+
+/// 書き出したファイルを Finder で表示する
+#[tauri::command]
+pub fn reveal_path(path: String, app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .reveal_item_in_dir(path)
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

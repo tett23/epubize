@@ -122,6 +122,20 @@ export async function installBackend(page: Page, state: BackendState = defaultSt
     const fail = (message: string) => {
       throw message;
     };
+    type Scope = { kind: "novel" | "episode"; id: number };
+    // 書き出す範囲の、本文を取得済みの話
+    const exportEpisodes = (scope: Scope) =>
+      state.novels
+        .flatMap((n) => n.episodes)
+        .filter((e) => (scope.kind === "novel" ? e.novelId === scope.id : e.id === scope.id))
+        .filter((e) => e.bodyFetchedAt != null);
+    const exportTitle = (scope: Scope) => {
+      if (scope.kind === "novel") {
+        return state.novels.find((n) => n.id === scope.id)?.title;
+      }
+      const novel = state.novels.find((n) => n.episodes.some((e) => e.id === scope.id));
+      return `${novel?.title} ${novel?.episodes.find((e) => e.id === scope.id)?.title}`;
+    };
 
     const commands: Record<string, (args: Record<string, unknown>) => unknown> = {
       environment: () => "development",
@@ -189,6 +203,14 @@ export async function installBackend(page: Page, state: BackendState = defaultSt
       add_novel: () => null,
       fetch_novel: () => null,
       refetch_episode: () => null,
+      download_epub: ({ scope }) => `/Users/test/Downloads/${exportTitle(scope as Scope)}.epub`,
+      download_zip: ({ scope }) => `/Users/test/Downloads/${exportTitle(scope as Scope)}.zip`,
+      send_to_kindle: ({ scope }) => {
+        const sent = exportEpisodes(scope as Scope);
+        for (const episode of sent) episode.sentAt = "2026-01-04T00:00:00Z";
+        return sent.length;
+      },
+      reveal_path: () => null,
       remove_episodes: ({ novelId }) => {
         const novel = state.novels.find((n) => n.id === novelId);
         const removed = novel?.episodes.length ?? 0;

@@ -31,6 +31,9 @@ url = "2"
 chrono = { version = "0.4.45", default-features = false, features = ["std", "now", "clock"] }
 jsonschema = { version = "0.58.6", default-features = false }
 base64 = "0.23.1"
+regex = "1.13.1"
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+tempfile = "3.27.0"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
@@ -43,5 +46,4 @@ strip = true
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
-tempfile = "3.27.0"
 tokio = { version = "1", features = ["test-util", "rt-multi-thread"] }

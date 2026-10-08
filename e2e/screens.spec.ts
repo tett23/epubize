@@ -73,9 +73,15 @@ test.describe("latest", () => {
         episodeId: 2,
       });
 
-    // 本文を取得済みの話には send to Kindle を出すが、まだ押せない
+    // 本文を取得済みの話は Kindle に送れ、送ると送った印を出す
     const fetched = page.getByRole("row").filter({ hasText: "第1話" });
-    await expect(fetched.getByRole("button", { name: "send to Kindle" })).toBeDisabled();
+    await expect(fetched.getByText("(sent)")).toHaveCount(0);
+    await fetched.getByRole("button", { name: "send to Kindle" }).click();
+    await expect(fetched.getByRole("status")).toHaveText("送信しました（1 話）");
+    await expect(fetched.getByText("(sent)")).toBeVisible();
+    expect((await calls(page)).find((c) => c.cmd === "send_to_kindle")?.args).toEqual({
+      scope: { kind: "episode", id: 1 },
+    });
   });
 });
 
@@ -201,7 +207,7 @@ test.describe("管理画面の epub-builder", () => {
     await installBackend(page);
     await page.goto("/");
     await page.getByRole("link", { name: "settings" }).click();
-    const section = page.getByRole("region").or(page.locator("section")).filter({ hasText: "EPUB を作るときに" });
+    const section = page.getByRole("region").or(page.locator("section")).filter({ hasText: "EPUB 3.0 を作るときに" });
     await expect(section.getByText("見つかりません")).toHaveCount(2);
 
     await page.getByLabel("epub-builder の実行ファイル").fill("/usr/local/bin/epub-builder");
@@ -236,22 +242,112 @@ test.describe("管理画面の epub-builder", () => {
   });
 });
 
-test.describe("話ごとの EPUB と送信", () => {
+test.describe("書き出しと Kindle への送信", () => {
   test("本文を取得済みの話だけに、話の題名の後ろに download epub と send to Kindle を出す", async ({ page }) => {
     await installBackend(page);
     await page.goto("/");
     await page.getByRole("link", { name: "合成データの作品" }).click();
 
     const fetched = page.getByRole("row").filter({ hasText: "第1話　合成データの話" });
-    await expect(fetched.getByRole("button", { name: "download epub" })).toBeDisabled();
-    await expect(fetched.getByRole("button", { name: "send to Kindle" })).toBeDisabled();
     // 話の題名の列の後ろに並ぶ
     const cells = fetched.getByRole("cell");
     await expect(cells.nth(2)).toContainText("第1話　合成データの話");
-    await expect(cells.nth(3).getByRole("button", { name: "download epub" })).toBeVisible();
+    await expect(cells.nth(3).getByRole("button", { name: "download epub" })).toBeEnabled();
+    await expect(cells.nth(3).getByRole("button", { name: "send to Kindle" })).toBeEnabled();
 
     const unfetched = page.getByRole("row").filter({ hasText: "第2話　合成データの話" });
     await expect(unfetched.getByRole("button")).toHaveCount(0);
+  });
+
+  test("話の download epub で書いたファイルの名前を出し、Finder で表示できる", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "合成データの作品" }).click();
+    const fetched = page.getByRole("row").filter({ hasText: "第1話　合成データの話" });
+    await fetched.getByRole("button", { name: "download epub" }).click();
+    await expect(fetched.getByRole("status")).toContainText(
+      "保存しました: 合成データの作品 第1話　合成データの話.epub",
+    );
+    expect((await calls(page)).find((c) => c.cmd === "download_epub")?.args).toEqual({
+      scope: { kind: "episode", id: 1 },
+    });
+
+    await fetched.getByRole("button", { name: "Finder で表示" }).click();
+    await expect
+      .poll(async () => (await calls(page)).find((c) => c.cmd === "reveal_path")?.args)
+      .toEqual({ path: "/Users/test/Downloads/合成データの作品 第1話　合成データの話.epub" });
+  });
+
+  test("作品の download zip と download epub は作品の全体を書く", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "合成データの作品" }).click();
+    await page.getByRole("button", { name: "download zip" }).click();
+    await expect(page.getByRole("status").filter({ hasText: ".zip" })).toHaveText(
+      "保存しました: 合成データの作品.zip Finder で表示",
+    );
+    await page.getByRole("button", { name: "download epub" }).first().click();
+    await expect(page.getByRole("status").filter({ hasText: "合成データの作品.epub" })).toBeVisible();
+    const scopes = (await calls(page))
+      .filter((c) => c.cmd === "download_zip" || c.cmd === "download_epub")
+      .map((c) => [c.cmd, c.args.scope]);
+    expect(scopes).toEqual([
+      ["download_zip", { kind: "novel", id: 1 }],
+      ["download_epub", { kind: "novel", id: 1 }],
+    ]);
+  });
+
+  test("作品の send to Kindle は確かめてから送り、送った印を出す", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "合成データの作品" }).click();
+    await page.getByRole("button", { name: "send to Kindle" }).first().click();
+    const dialog = page.getByRole("alertdialog");
+    await expect(dialog).toContainText("本文を取得済みの 1 話を 1 冊にして Kindle に送ります。よろしいですか？");
+    expect((await calls(page)).some((c) => c.cmd === "send_to_kindle")).toBe(false);
+
+    await dialog.getByRole("button", { name: "実行する" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "送信しました" })).toHaveText("送信しました（1 話）");
+    expect((await calls(page)).find((c) => c.cmd === "send_to_kindle")?.args).toEqual({
+      scope: { kind: "novel", id: 1 },
+    });
+    const fetched = page.getByRole("row").filter({ hasText: "第1話　合成データの話" });
+    await expect(fetched.getByText("(sent)")).toBeVisible();
+  });
+
+  test("書き出せなければ理由を出す", async ({ page }) => {
+    await installBackend(page, {
+      ...defaultState(),
+      failures: { download_epub: "epub-builder が見つかりません。管理画面で実行ファイルを指定してください" },
+    });
+    await page.goto("/");
+    await page.getByRole("link", { name: "合成データの作品" }).click();
+    await page.getByRole("button", { name: "download epub" }).first().click();
+    await expect(page.getByRole("alert")).toHaveText(
+      "epub-builder が見つかりません。管理画面で実行ファイルを指定してください",
+    );
+    await expect(page.getByRole("status")).toHaveCount(0);
+  });
+
+  test("話のページでは、その話を書き出して送れる", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "合成データの作品" }).click();
+    await page.getByRole("link", { name: "第1話　合成データの話" }).click();
+    await expect(page.getByRole("heading", { name: "1: 第1話　合成データの話" })).toBeVisible();
+    await page.getByRole("button", { name: "download zip" }).click();
+    await page.getByRole("button", { name: "download epub" }).click();
+    await page.getByRole("button", { name: "send to Kindle" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "送信しました" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 3 })).toContainText("(sent)");
+    const scopes = (await calls(page))
+      .filter((c) => ["download_zip", "download_epub", "send_to_kindle"].includes(c.cmd))
+      .map((c) => [c.cmd, c.args.scope]);
+    expect(scopes).toEqual([
+      ["download_zip", { kind: "episode", id: 1 }],
+      ["download_epub", { kind: "episode", id: 1 }],
+      ["send_to_kindle", { kind: "episode", id: 1 }],
+    ]);
   });
 
   test("mobi のボタンはどこにも出さない", async ({ page }) => {
@@ -270,7 +366,7 @@ test.describe("管理画面の send-to-kindle", () => {
     await installBackend(page);
     await page.goto("/");
     await page.getByRole("link", { name: "settings" }).click();
-    const section = page.locator("section").filter({ hasText: "Kindle に EPUB を送るときに" });
+    const section = page.locator("section").filter({ hasText: "send to Kindle で EPUB を送るときに" });
     await expect(section.getByText("見つかりません")).toHaveCount(2);
 
     await page.getByLabel("send-to-kindle の実行ファイル").fill("/usr/local/bin/send-to-kindle");
@@ -323,7 +419,7 @@ test.describe("管理画面の send-to-kindle", () => {
     await installBackend(page, { ...defaultState(), missingEnvKeys: [] });
     await page.goto("/");
     await page.getByRole("link", { name: "settings" }).click();
-    const section = page.locator("section").filter({ hasText: "Kindle に EPUB を送るときに" });
+    const section = page.locator("section").filter({ hasText: "send to Kindle で EPUB を送るときに" });
     await expect(section.getByText("/tmp/epubize/.env", { exact: true })).toBeVisible();
 
     await page.getByLabel("send-to-kindle の .env", { exact: true }).fill("/usr/local/etc/send-to-kindle/.env");

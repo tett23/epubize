@@ -1,9 +1,10 @@
 import { Fragment } from "react";
 import { useParams } from "react-router";
+import { DownloadEpubButton, DownloadZipButton, SendToKindleButton } from "../components/ExportButtons";
 import { ExternalLink } from "../components/ExternalLink";
 import { AuthorLink, EpisodeTitle } from "../components/links";
 import { NormalizeOptionsForm, useNormalizeOptions } from "../components/NormalizeOptionsForm";
-import { ActionButton, ButtonGroup, PendingButton, SentMark } from "../components/ui";
+import { ActionButton, ButtonGroup, SentMark } from "../components/ui";
 import { fetchNovel, novelDetail, removeEpisodes } from "../data";
 import { useLoad } from "../hooks";
 import { formatDate, formatDateTime } from "../lib/format";
@@ -56,17 +57,25 @@ function Novel({ novel, reload }: { novel: NovelDetailData; reload: () => void }
         >
           remove episodes
         </ActionButton>
-        <PendingButton>download zip</PendingButton>
-        <PendingButton>download epub</PendingButton>
-        <PendingButton>send to Kindle</PendingButton>
+        <DownloadZipButton scope={{ kind: "novel", id: novel.id }} />
+        <DownloadEpubButton scope={{ kind: "novel", id: novel.id }} />
+        <SendToKindleButton
+          scope={{ kind: "novel", id: novel.id }}
+          confirm={`本文を取得済みの ${fetchedCount(novel)} 話を 1 冊にして Kindle に送ります。よろしいですか？`}
+          onSent={reload}
+        />
       </ButtonGroup>
       <NormalizeOptionsForm novelId={novel.id} {...normalize} />
-      <Episodes novel={novel} />
+      <Episodes novel={novel} reload={reload} />
     </div>
   );
 }
 
-function Episodes({ novel }: { novel: NovelDetailData }) {
+function fetchedCount(novel: NovelDetailData): number {
+  return novel.episodes.filter((episode) => episode.bodyFetchedAt != null).length;
+}
+
+function Episodes({ novel, reload }: { novel: NovelDetailData; reload: () => void }) {
   return (
     <table className="border-collapse">
       <tbody>
@@ -94,11 +103,11 @@ function Episodes({ novel }: { novel: NovelDetailData }) {
                   <EpisodeTitle episode={episode}>{episode.title}</EpisodeTitle> {episode.sentAt && <SentMark />}
                 </td>
                 <td className="py-1.5 pl-4">
-                  {/* 本文を取得済みの話だけ。EPUB の生成と送信はまだ実装していない（ADR 0021） */}
+                  {/* 本文を取得済みの話だけ（ADR 0025） */}
                   {episode.bodyFetchedAt && (
                     <ButtonGroup>
-                      <PendingButton>download epub</PendingButton>
-                      <PendingButton>send to Kindle</PendingButton>
+                      <DownloadEpubButton scope={{ kind: "episode", id: episode.id }} />
+                      <SendToKindleButton scope={{ kind: "episode", id: episode.id }} onSent={reload} />
                     </ButtonGroup>
                   )}
                 </td>

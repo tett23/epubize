@@ -157,7 +157,7 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
           found={view.epubBuilderFound}
         />
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          EPUB を作るときに子プロセスとして起動します。EPUB の生成はまだ実装していません。
+          download epub と send to Kindle で EPUB 3.0 を作るときに、子プロセスとして起動します。
         </p>
       </Section>
       <Section title="send-to-kindle">
@@ -169,7 +169,7 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
           found={view.sendToKindleFound}
         />
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Kindle に EPUB を送るときに子プロセスとして起動します。Kindle への送信はまだ実装していません。
+          send to Kindle で EPUB を送るときに、子プロセスとして起動します。
         </p>
         <FileField
           name=".env"

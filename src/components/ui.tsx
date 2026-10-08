@@ -49,38 +49,35 @@ export function Button({
   );
 }
 
-/** 裏の機能がまだないボタン。押せない状態で置く */
-export function PendingButton({ children }: { children: ReactNode }) {
-  return (
-    <Button disabled title="未実装">
-      {children}
-    </Button>
-  );
-}
-
 /**
  * 押すと `action` を呼ぶボタン。終わるまで押せなくし、失敗したら理由をボタンの横に出す。
  * `confirm` があれば、押したときにボタンの横に確認の文と「実行する」「やめる」を出し、実行するを押したときに呼ぶ。
- * Tauri の WebView では `window.confirm` のダイアログが出ないため、画面の中で確かめる
+ * Tauri の WebView では `window.confirm` のダイアログが出ないため、画面の中で確かめる。
+ * `done` があれば、成功したときに結果をボタンの横に出す
  */
-export function ActionButton({
+export function ActionButton<T>({
   action,
   confirm,
+  done,
   children,
 }: {
-  action: () => Promise<unknown>;
+  action: () => Promise<T>;
   confirm?: string;
+  done?: (result: T) => ReactNode;
   children: ReactNode;
 }) {
   const [running, setRunning] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<ReactNode>(null);
   const run = async () => {
     setConfirming(false);
     setRunning(true);
+    setResult(null);
     try {
-      await action();
+      const value = await action();
       setError(null);
+      setResult(done?.(value) ?? null);
     } catch (err) {
       setError(String(err));
     } finally {
@@ -105,6 +102,11 @@ export function ActionButton({
           <span className="text-red-700 dark:text-red-400">{confirm}</span>
           <Button onClick={() => void run()}>実行する</Button>
           <Button onClick={() => setConfirming(false)}>やめる</Button>
+        </span>
+      )}
+      {result != null && (
+        <span role="status" className="text-sm text-neutral-600 dark:text-neutral-400">
+          {result}
         </span>
       )}
       {error && (
