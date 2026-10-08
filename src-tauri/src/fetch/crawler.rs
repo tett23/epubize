@@ -81,7 +81,7 @@ pub struct CrawlError {
 }
 
 impl CrawlError {
-    fn crawler(message: impl Into<String>) -> Self {
+    pub(crate) fn crawler(message: impl Into<String>) -> Self {
         Self {
             kind: ErrorKind::Crawler,
             message: message.into(),
@@ -128,7 +128,8 @@ fn find_program(name: &str, dirs: impl IntoIterator<Item = PathBuf>) -> Option<P
         .find(|path| is_executable(path))
 }
 
-fn is_executable(path: &std::path::Path) -> bool {
+/// 実行できるファイルか
+pub fn is_executable(path: &std::path::Path) -> bool {
     let Ok(metadata) = std::fs::metadata(path) else {
         return false;
     };

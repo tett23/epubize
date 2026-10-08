@@ -5,6 +5,7 @@ pub mod fetch;
 pub mod library;
 pub mod pipeline;
 pub mod schedule;
+pub mod settings;
 pub mod subscriptions;
 mod window_state;
 
@@ -20,6 +21,9 @@ pub fn run() {
             commands::environment,
             commands::list_subscriptions,
             commands::add_subscription,
+            commands::remove_subscription,
+            commands::get_settings,
+            commands::save_settings,
             commands::fetch_status,
             commands::fetch_schedule,
             commands::fetch_all,
@@ -44,12 +48,21 @@ pub fn run() {
 
             let subscriptions = subscriptions::default_path(env)
                 .ok_or("cannot determine the subscriptions path")?;
-            app.manage(Paths { env, subscriptions });
+            let settings_path =
+                settings::default_path(env).ok_or("cannot determine the settings path")?;
+            // 設定のファイルが壊れていても起動できるよう、読めなければ既定値で動かす。理由は管理画面に出す
+            let current = settings::load(&settings_path).unwrap_or_default();
+            let schedule = current.validate().unwrap_or_default();
+            app.manage(Paths {
+                env,
+                subscriptions,
+                settings: settings_path,
+                database: db_path,
+            });
             app.manage(window_state::WindowStateStore::new(env));
-            app.manage(commands::fetch_state(app.handle()));
-            let schedule = schedule::Schedule::default();
-            app.manage(schedule);
-            commands::start_scheduled_fetch(app.handle().clone(), schedule);
+            app.manage(commands::fetch_state(app.handle(), &current));
+            app.manage(commands::ScheduleState(std::sync::RwLock::new(schedule)));
+            commands::start_scheduled_fetch(app.handle().clone());
 
             let window = app
                 .get_webview_window("main")

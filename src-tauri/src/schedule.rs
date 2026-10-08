@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use chrono::{Local, NaiveDateTime, NaiveTime};
 
-/// 定期取得の設定。管理画面ができるまでは決まった値を使う
+/// 定期取得の設定。管理画面で変える（ADR 0020）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Schedule {
     pub enabled: bool,
@@ -45,16 +45,15 @@ pub fn crossed(previous: NaiveDateTime, now: NaiveDateTime, at: NaiveTime) -> bo
     previous < latest
 }
 
-/// `clock` を `CHECK_INTERVAL` ごとに見て、`schedule.at` を越えるたびに `run` を呼ぶ。終わらない
-pub async fn run_daily<C, R, F>(schedule: Schedule, clock: C, mut run: R)
+/// `clock` を `CHECK_INTERVAL` ごとに見て、毎日の時刻を越えるたびに `run` を呼ぶ。終わらない。
+/// 設定は見るたびに `schedule` から読むため、管理画面で変えるとすぐに効く。無効の間は呼ばない
+pub async fn run_daily<S, C, R, F>(schedule: S, clock: C, mut run: R)
 where
+    S: Fn() -> Schedule,
     C: Fn() -> NaiveDateTime,
     R: FnMut() -> F,
     F: Future<Output = ()>,
 {
-    if !schedule.enabled {
-        return;
-    }
     let mut previous = clock();
     let mut interval = tokio::time::interval(CHECK_INTERVAL);
     // 起動した直後の 1 回目は飛ばす。起動した時点で行うことはしない
@@ -62,7 +61,8 @@ where
     loop {
         interval.tick().await;
         let now = clock();
-        if crossed(previous, now, schedule.at) {
+        let schedule = schedule();
+        if schedule.enabled && crossed(previous, now, schedule.at) {
             run().await;
         }
         previous = now;
@@ -165,7 +165,7 @@ mod tests {
         let runs = Arc::new(Mutex::new(Vec::new()));
         let (reader, c, r) = (clock.clone(), clock.clone(), runs.clone());
         let task = tokio::spawn(run_daily(
-            Schedule::default(),
+            Schedule::default,
             move || reader.now(),
             move || {
                 let (c, r) = (c.clone(), r.clone());
@@ -195,17 +195,40 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn does_nothing_when_disabled() {
-        let schedule = Schedule {
+    async fn follows_schedule_changes_and_skips_while_disabled() {
+        let clock = FakeClock(Arc::new(Mutex::new(t("2026-10-09 02:58:00"))));
+        let schedule = Arc::new(Mutex::new(Schedule {
             enabled: false,
             ..Schedule::default()
+        }));
+        let runs = Arc::new(Mutex::new(Vec::new()));
+        let (reader, c, r, s) = (clock.clone(), clock.clone(), runs.clone(), schedule.clone());
+        let task = tokio::spawn(run_daily(
+            move || *s.lock().unwrap(),
+            move || reader.now(),
+            move || {
+                let (c, r) = (c.clone(), r.clone());
+                async move { r.lock().unwrap().push(c.now()) }
+            },
+        ));
+
+        // 無効の間に 3:00 を越えても行わない
+        tokio::time::sleep(CHECK_INTERVAL).await;
+        clock.set(t("2026-10-09 03:01:00"));
+        tokio::time::sleep(CHECK_INTERVAL).await;
+        assert!(runs.lock().unwrap().is_empty());
+
+        // 有効にして時刻を 4:00 に変えると、4:00 を越えたときに行う
+        *schedule.lock().unwrap() = Schedule {
+            enabled: true,
+            at: NaiveTime::from_hms_opt(4, 0, 0).unwrap(),
         };
-        // 無効なら、すぐに終わる
-        run_daily(
-            schedule,
-            || t("2026-10-09 03:00:00"),
-            || async { unreachable!() },
-        )
-        .await;
+        clock.set(t("2026-10-09 03:59:00"));
+        tokio::time::sleep(CHECK_INTERVAL).await;
+        clock.set(t("2026-10-09 04:00:00"));
+        tokio::time::sleep(CHECK_INTERVAL).await;
+        task.abort();
+
+        assert_eq!(*runs.lock().unwrap(), [t("2026-10-09 04:00:00")]);
     }
 }

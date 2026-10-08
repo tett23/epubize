@@ -1,24 +1,28 @@
 //! 画面から呼ぶ Tauri のコマンド。
 
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::db::Database;
 use crate::environment::Environment;
-use crate::fetch::crawler::{Command, ProcessCrawler, Request};
+use crate::fetch::crawler::{Command, Crawler, ProcessCrawler, Request};
 use crate::fetch::queue::Queues;
 use crate::fetch::{self, Fetcher};
 use crate::library::query;
 use crate::pipeline;
+use crate::schedule::Schedule;
+use crate::settings::{self, Settings};
 use crate::subscriptions::{self, AddResult, Site, Subscription};
 
-/// 環境ごとに分かれたファイルの置き場所（ADR 0014）
+/// 環境ごとに分かれたファイルの置き場所（ADR 0014、ADR 0020）
 pub struct Paths {
     pub env: Environment,
     pub subscriptions: PathBuf,
+    pub settings: PathBuf,
+    pub database: PathBuf,
 }
 
 /// データの置き場所を決めている環境。画面の見出しに出す
@@ -52,8 +56,22 @@ pub fn add_subscription(url: &str, paths: State<'_, Paths>) -> Result<AddResult,
     subscriptions::add(&paths.subscriptions, subscription).map_err(|e| e.to_string())
 }
 
-/// 取得のキュー（ADR 0015）。クローラーが見つからなければ None
-pub struct FetchState(Option<Fetcher>);
+/// 作品を購読から外す（ADR 0020）。取得済みの作品のデータは消さない。外したら真を返す
+#[tauri::command]
+pub fn remove_subscription(
+    site_key: &str,
+    site_id: &str,
+    paths: State<'_, Paths>,
+) -> Result<bool, String> {
+    let subscription = Subscription {
+        site: site(site_key)?,
+        id: site_id.to_owned(),
+    };
+    subscriptions::remove(&paths.subscriptions, &subscription).map_err(|e| e.to_string())
+}
+
+/// 取得のキュー（ADR 0015）。クローラーは管理画面で差し替える（ADR 0020）
+pub struct FetchState(Fetcher);
 
 /// 取得が終わったことを画面に知らせるイベント。画面はこれを受けて表示を読み直す
 #[derive(Clone, serde::Serialize)]
@@ -75,10 +93,9 @@ fn on_done(app: &AppHandle, request: Request, result: Result<String, fetch::craw
     });
     let error = match outcome {
         Ok(next) => {
-            if let Some(fetcher) = &app.state::<FetchState>().0 {
-                for request in next {
-                    let _ = fetcher.enqueue(request);
-                }
+            let fetcher = &app.state::<FetchState>().0;
+            for request in next {
+                let _ = fetcher.enqueue(request);
             }
             None
         }
@@ -94,28 +111,35 @@ fn on_done(app: &AppHandle, request: Request, result: Result<String, fetch::craw
     );
 }
 
-pub fn fetch_state(app: &AppHandle) -> FetchState {
-    let Some(crawler) = ProcessCrawler::find() else {
-        return FetchState(None);
-    };
+/// 設定で指定したクローラーか、指定がなければ自動で探したもの（ADR 0018、ADR 0020）
+fn crawler(settings: &Settings) -> Option<ProcessCrawler> {
+    match &settings.crawler_path {
+        Some(path) => Some(ProcessCrawler::new(path)),
+        None => ProcessCrawler::find(),
+    }
+}
+
+pub fn fetch_state(app: &AppHandle, settings: &Settings) -> FetchState {
     let queues = Queues::new(tauri::async_runtime::handle().inner().clone());
     let handle = app.clone();
     let done: fetch::OnDone = Arc::new(move |request, result| on_done(&handle, request, result));
-    FetchState(Some(Fetcher::new(queues, Arc::new(crawler), done)))
+    let crawler = crawler(settings).map(|c| Arc::new(c) as Arc<dyn Crawler>);
+    FetchState(Fetcher::new(queues, crawler, done))
 }
 
 fn fetcher<'a>(fetch: &'a State<'_, FetchState>) -> Result<&'a Fetcher, String> {
-    fetch.0.as_ref().ok_or_else(|| {
-        format!(
-            "クローラーが見つかりません。PATH に {} を置くか、環境変数 EPUBIZE_CRAWLER に実行ファイルのパスを指定してください",
-            fetch::crawler::CRAWLER_NAME
-        )
-    })
+    if fetch.0.has_crawler() {
+        return Ok(&fetch.0);
+    }
+    Err(format!(
+        "クローラーが見つかりません。管理画面で実行ファイルを指定するか、PATH に {} を置いてください",
+        fetch::crawler::CRAWLER_NAME
+    ))
 }
 
 #[derive(serde::Serialize)]
 pub struct FetchStatus {
-    /// クローラーが見つかったか
+    /// クローラーがあるか
     configured: bool,
     /// キューに残っているタスクの数（取得と待ちの両方を数える）
     queued: usize,
@@ -124,8 +148,8 @@ pub struct FetchStatus {
 #[tauri::command]
 pub fn fetch_status(fetch: State<'_, FetchState>) -> FetchStatus {
     FetchStatus {
-        configured: fetch.0.is_some(),
-        queued: fetch.0.as_ref().map_or(0, |f| f.queues().len()),
+        configured: fetch.0.has_crawler(),
+        queued: fetch.0.queues().len(),
     }
 }
 
@@ -144,17 +168,21 @@ fn requeue_all(paths: &Paths, fetcher: &Fetcher, follow_up: bool) -> Result<usiz
     Ok(total)
 }
 
-/// 毎日決めた時刻に fetch all を行う（ADR 0019）。クローラーが見つからなければ何もしない
-pub fn start_scheduled_fetch(app: AppHandle, schedule: crate::schedule::Schedule) {
+/// いまの定期取得の設定。管理画面で保存すると書き換わる（ADR 0020）
+pub struct ScheduleState(pub RwLock<Schedule>);
+
+/// 毎日決めた時刻に fetch all を行う（ADR 0019）。設定は見るたびに読み直す。クローラーがなければ何もしない
+pub fn start_scheduled_fetch(app: AppHandle) {
+    let reader = app.clone();
     tauri::async_runtime::spawn(crate::schedule::run_daily(
-        schedule,
+        move || *reader.state::<ScheduleState>().0.read().unwrap(),
         crate::schedule::local_now,
         move || {
             let app = app.clone();
             async move {
                 let paths = app.state::<Paths>();
                 let fetch = app.state::<FetchState>();
-                let Some(fetcher) = &fetch.0 else {
+                let Ok(fetcher) = fetcher(&fetch) else {
                     return;
                 };
                 let result = requeue_all(&paths, fetcher, true);
@@ -176,11 +204,65 @@ pub struct ScheduleInfo {
 
 /// 定期取得の設定（ADR 0019）。画面に表示する
 #[tauri::command]
-pub fn fetch_schedule(schedule: State<'_, crate::schedule::Schedule>) -> ScheduleInfo {
+pub fn fetch_schedule(schedule: State<'_, ScheduleState>) -> ScheduleInfo {
+    let schedule = schedule.0.read().unwrap();
     ScheduleInfo {
         enabled: schedule.enabled,
         at: schedule.at.format("%H:%M").to_string(),
     }
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SettingsView {
+    /// ファイルに保存している設定。ファイルが壊れていれば既定値
+    settings: Settings,
+    /// 設定のファイルを読めなかったときの理由
+    load_error: Option<String>,
+    /// いま使っているクローラーの実行ファイル。見つからなければ null
+    crawler_in_use: Option<String>,
+    /// 実行ファイルを指定しなかったときに自動で見つかるもの
+    crawler_found: Option<String>,
+    environment: String,
+    subscriptions_path: String,
+    settings_path: String,
+    database_path: String,
+}
+
+/// 管理画面に出す設定と、データの置き場所（ADR 0020）
+#[tauri::command]
+pub fn get_settings(paths: State<'_, Paths>) -> SettingsView {
+    let (settings, load_error) = match settings::load(&paths.settings) {
+        Ok(settings) => (settings, None),
+        Err(e) => (Settings::default(), Some(e)),
+    };
+    let path = |p: &std::path::Path| p.to_string_lossy().into_owned();
+    SettingsView {
+        crawler_in_use: crawler(&settings).map(|c| path(c.program())),
+        crawler_found: ProcessCrawler::find().map(|c| path(c.program())),
+        settings,
+        load_error,
+        environment: paths.env.to_string(),
+        subscriptions_path: path(&paths.subscriptions),
+        settings_path: path(&paths.settings),
+        database_path: path(&paths.database),
+    }
+}
+
+/// 設定を確かめて保存し、すぐに反映する。クローラーを差し替え、定期取得の設定を書き換える（ADR 0020）
+#[tauri::command]
+pub fn save_settings(
+    settings: Settings,
+    paths: State<'_, Paths>,
+    fetch: State<'_, FetchState>,
+    schedule: State<'_, ScheduleState>,
+) -> Result<(), String> {
+    let next = settings::save(&paths.settings, &settings)?;
+    fetch
+        .0
+        .set_crawler(crawler(&settings).map(|c| Arc::new(c) as Arc<dyn Crawler>));
+    *schedule.0.write().unwrap() = next;
+    Ok(())
 }
 
 #[tauri::command]

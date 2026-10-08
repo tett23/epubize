@@ -294,6 +294,33 @@ pub fn add(path: &Path, subscription: Subscription) -> Result<AddResult, Error> 
     })
 }
 
+/// 作品を購読から外す。外したら真、購読していなければ偽を返し、ファイルは書き換えない。
+/// 書き換える前に、元のファイルを `novels.json.bak` に写す（ADR 0020）
+pub fn remove(path: &Path, subscription: &Subscription) -> Result<bool, Error> {
+    let Some(mut root) = read(path)? else {
+        return Ok(false);
+    };
+    let Some(subscribe) = subscribe_of(&root)? else {
+        return Ok(false);
+    };
+    if !ids_of(subscribe, subscription.site)?.contains(&subscription.id) {
+        return Ok(false);
+    }
+    let ids = root["subscribe"][subscription.site.key()]
+        .as_array_mut()
+        .expect("checked by ids_of");
+    ids.retain(|value| id_string(value).as_deref() != Some(subscription.id.as_str()));
+
+    fs::copy(path, backup_path(path))?;
+    let tmp = with_suffix(path, ".tmp");
+    fs::write(
+        &tmp,
+        serde_json::to_string_pretty(&root).expect("Value always serializes") + "\n",
+    )?;
+    fs::rename(&tmp, path)?;
+    Ok(true)
+}
+
 fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
     let mut s = path.as_os_str().to_owned();
     s.push(suffix);
@@ -498,6 +525,41 @@ mod tests {
         add(&path, sub(Site::Novel18, "n0002bb")).unwrap();
         assert!(!backup_path(&path).exists());
         assert_eq!(list(&path).unwrap(), [sub(Site::Novel18, "n0002bb")]);
+    }
+
+    #[test]
+    fn removes_subscription_and_backs_up() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_sample(dir.path());
+
+        // hameln は数値で持っていても、文字列の ID で外せる
+        assert!(remove(&path, &sub(Site::Hameln, "100001")).unwrap());
+        assert_eq!(fs::read_to_string(backup_path(&path)).unwrap(), SAMPLE);
+        assert_eq!(
+            list(&path).unwrap(),
+            [
+                sub(Site::Narou, "n0001aa"),
+                sub(Site::Kakuyomu, "1000000000000000001")
+            ]
+        );
+        let root: Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(root["other"]["a"], "keep");
+    }
+
+    #[test]
+    fn does_not_rewrite_when_not_subscribed() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = write_sample(dir.path());
+        assert!(!remove(&path, &sub(Site::Narou, "n9999zz")).unwrap());
+        assert_eq!(fs::read_to_string(&path).unwrap(), SAMPLE);
+        assert!(!backup_path(&path).exists());
+        assert!(
+            !remove(
+                &dir.path().join("missing.json"),
+                &sub(Site::Narou, "n0001aa")
+            )
+            .unwrap()
+        );
     }
 
     #[test]

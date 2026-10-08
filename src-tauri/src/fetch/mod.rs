@@ -4,7 +4,7 @@ pub mod crawler;
 pub mod queue;
 
 use std::collections::HashSet;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
@@ -28,7 +28,8 @@ type Clock = Arc<dyn Fn() -> DateTime<Utc> + Send + Sync>;
 
 struct Inner {
     queues: Queues,
-    crawler: Arc<dyn Crawler>,
+    /// 取得を行うもの。見つからなければ None で、取得は失敗する。管理画面で差し替える（ADR 0020）
+    crawler: RwLock<Option<Arc<dyn Crawler>>>,
     on_done: OnDone,
     now: Clock,
 }
@@ -40,15 +41,20 @@ pub struct Fetcher {
 }
 
 impl Fetcher {
-    pub fn new(queues: Queues, crawler: Arc<dyn Crawler>, on_done: OnDone) -> Self {
+    pub fn new(queues: Queues, crawler: Option<Arc<dyn Crawler>>, on_done: OnDone) -> Self {
         Self::with_clock(queues, crawler, on_done, Arc::new(Utc::now))
     }
 
-    fn with_clock(queues: Queues, crawler: Arc<dyn Crawler>, on_done: OnDone, now: Clock) -> Self {
+    fn with_clock(
+        queues: Queues,
+        crawler: Option<Arc<dyn Crawler>>,
+        on_done: OnDone,
+        now: Clock,
+    ) -> Self {
         Self {
             inner: Arc::new(Inner {
                 queues,
-                crawler,
+                crawler: RwLock::new(crawler),
                 on_done,
                 now,
             }),
@@ -57,6 +63,16 @@ impl Fetcher {
 
     pub fn queues(&self) -> &Queues {
         &self.inner.queues
+    }
+
+    /// クローラーがあるか
+    pub fn has_crawler(&self) -> bool {
+        self.inner.crawler.read().unwrap().is_some()
+    }
+
+    /// クローラーを差し替える。積んであるタスクは、取り出されたときに新しいクローラーで取得する
+    pub fn set_crawler(&self, crawler: Option<Arc<dyn Crawler>>) {
+        *self.inner.crawler.write().unwrap() = crawler;
     }
 
     /// 取得と、その後の待ちを 1 組で末尾に積む。URL からドメインを決められなければ積まない
@@ -101,7 +117,11 @@ impl Fetcher {
     fn fetch_task(&self, request: Request, retries: u32) -> Task {
         let fetcher = self.clone();
         task(move || async move {
-            let result = fetcher.inner.crawler.crawl(&request).await;
+            let crawler = fetcher.inner.crawler.read().unwrap().clone();
+            let result = match crawler {
+                Some(crawler) => crawler.crawl(&request).await,
+                None => Err(CrawlError::crawler("the crawler is not configured")),
+            };
             fetcher.handle_result(request, retries, result);
         })
     }
@@ -214,7 +234,7 @@ mod tests {
         });
         Fetcher::with_clock(
             Queues::new(Handle::current()),
-            crawler,
+            Some(crawler),
             on_done,
             Arc::new(move || now),
         )
@@ -421,6 +441,29 @@ mod tests {
             crawls,
             [format!("5s crawl {A1}"), format!("12s crawl {A1}")]
         );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn fails_without_crawler_and_uses_replaced_one() {
+        let log = Log::new();
+        let fetcher = fetcher(vec![], &log, now());
+        fetcher.set_crawler(None);
+        assert!(!fetcher.has_crawler());
+        fetcher.enqueue(request(A1)).unwrap();
+        settle(10).await;
+        assert_eq!(log.events(), [format!("0s done {A1} Crawler")]);
+
+        // 差し替えた後は、新しいクローラーで取得する
+        let replaced = Arc::new(FakeCrawler {
+            results: Mutex::new(VecDeque::new()),
+            log: log.clone(),
+            secs: 0,
+        });
+        fetcher.set_crawler(Some(replaced));
+        assert!(fetcher.has_crawler());
+        fetcher.enqueue(request(A2)).unwrap();
+        settle(10).await;
+        assert!(log.events().contains(&format!("10s crawl {A2}")));
     }
 
     #[tokio::test(start_paused = true)]
