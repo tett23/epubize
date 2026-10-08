@@ -1,43 +1,77 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ExternalLink } from "../components/ExternalLink";
 import { AuthorLink, NovelSiteLink, novelPath } from "../components/links";
-import { ButtonGroup, InternalLink, PartsCount, PendingButton } from "../components/ui";
-import { listNovels, listUnadded } from "../data";
+import { Button, ButtonGroup, InternalLink, PartsCount, PendingButton } from "../components/ui";
+import { addSubscription, listNovels, listUnadded } from "../data";
 import { formatDateTime } from "../lib/format";
 import { libraryStats, sortNovels } from "../lib/library";
-import { partsOf, uniqueId, type Novel } from "../models";
+import { partsOf, uniqueId, type Novel, type UnaddedNovel } from "../models";
 
 export function Root() {
   const novels = sortNovels(listNovels());
+  const unadded = useUnadded();
 
   return (
     <div className="space-y-6">
-      <AddNovelForm />
+      <AddNovelForm onAdded={unadded.reload} />
       <ButtonGroup>
         <PendingButton>fetch all</PendingButton>
         <PendingButton>fetch all metadata</PendingButton>
       </ButtonGroup>
       <Stats novels={novels} />
       <Novels novels={novels} />
-      <Unadded />
+      <Unadded {...unadded} />
     </div>
   );
 }
 
-function AddNovelForm() {
+type Message = { kind: "info" | "error"; text: string };
+
+/** 作品の URL を購読に加える（ADR 0014） */
+function AddNovelForm({ onAdded }: { onAdded: () => void }) {
   const [url, setUrl] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<Message | null>(null);
+
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const { subscription, added } = await addSubscription(url);
+      const id = `${subscription.site}-${subscription.id}`;
+      setMessage({ kind: "info", text: added ? `${id} を購読に加えました` : `${id} はすでに購読しています` });
+      setUrl("");
+      onAdded();
+    } catch (err) {
+      setMessage({ kind: "error", text: String(err) });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <form className="flex gap-2" onSubmit={(e) => e.preventDefault()}>
-      <input
-        type="url"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        placeholder="作品の URL"
-        className="w-96 max-w-full rounded border border-neutral-300 px-2 py-1 dark:border-neutral-600 dark:bg-neutral-800"
-      />
-      <PendingButton>add</PendingButton>
-    </form>
+    <div className="space-y-1">
+      <form className="flex gap-2" onSubmit={onSubmit}>
+        <input
+          type="url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="作品の URL"
+          className="w-96 max-w-full rounded border border-neutral-300 px-2 py-1 dark:border-neutral-600 dark:bg-neutral-800"
+        />
+        <Button type="submit" disabled={url.trim() === "" || submitting}>
+          add
+        </Button>
+      </form>
+      {message && (
+        <p
+          role={message.kind === "error" ? "alert" : "status"}
+          className={`text-sm ${message.kind === "error" ? "text-red-600 dark:text-red-400" : "text-neutral-600 dark:text-neutral-400"}`}
+        >
+          {message.text}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -74,15 +108,42 @@ function Novels({ novels }: { novels: Novel[] }) {
   );
 }
 
-function Unadded() {
-  const items = listUnadded();
-  if (items.length === 0) {
+type UnaddedState = {
+  items: UnaddedNovel[];
+  error: string | null;
+  reload: () => void;
+};
+
+function useUnadded(): UnaddedState {
+  const [items, setItems] = useState<UnaddedNovel[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const reload = useCallback(() => {
+    listUnadded().then(
+      (value) => {
+        setItems(value);
+        setError(null);
+      },
+      (err: unknown) => setError(String(err)),
+    );
+  }, []);
+  useEffect(reload, [reload]);
+
+  return { items, error, reload };
+}
+
+function Unadded({ items, error }: UnaddedState) {
+  if (error == null && items.length === 0) {
     return null;
   }
 
   return (
     <section className="space-y-2">
       <h2 className="text-lg font-bold">未取得</h2>
+      {error != null && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          購読の一覧を読めません: {error}
+        </p>
+      )}
       <table className="border-collapse">
         <tbody>
           {items.map((item) => (

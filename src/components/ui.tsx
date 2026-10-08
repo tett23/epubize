@@ -12,17 +12,35 @@ export function InternalLink({ to, children }: { to: string; children: ReactNode
   );
 }
 
-/** 裏の機能がまだないボタン。押せない状態で置く */
-export function PendingButton({ children }: { children: ReactNode }) {
+export function Button({
+  type = "button",
+  disabled = false,
+  title,
+  children,
+}: {
+  type?: "button" | "submit";
+  disabled?: boolean;
+  title?: string;
+  children: ReactNode;
+}) {
   return (
     <button
-      type="button"
-      disabled
-      title="未実装"
-      className="rounded border border-neutral-300 bg-neutral-50 px-2.5 py-1 text-sm text-neutral-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200"
+      type={type}
+      disabled={disabled}
+      title={title}
+      className="rounded border border-neutral-300 bg-neutral-50 px-2.5 py-1 text-sm text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
     >
       {children}
     </button>
+  );
+}
+
+/** 裏の機能がまだないボタン。押せない状態で置く */
+export function PendingButton({ children }: { children: ReactNode }) {
+  return (
+    <Button disabled title="未実装">
+      {children}
+    </Button>
   );
 }
 

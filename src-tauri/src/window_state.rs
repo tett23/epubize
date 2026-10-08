@@ -1,4 +1,4 @@
-//! メインウィンドウの位置と大きさを記録し、次の起動時に戻す（ADR 0007）。
+//! メインウィンドウの位置と大きさを記録し、次の起動時に戻す（ADR 0007、ADR 0014）。
 
 use std::fs;
 use std::path::PathBuf;
@@ -8,6 +8,8 @@ use serde::{Deserialize, Serialize};
 use tauri::{
     AppHandle, Manager, PhysicalPosition, PhysicalSize, Runtime, WebviewWindow, WindowEvent,
 };
+
+use crate::environment::Environment;
 
 const FILENAME: &str = "window-state.json";
 
@@ -81,14 +83,27 @@ pub fn fits_on_monitors(window: &Rect, monitors: &[Rect]) -> bool {
 }
 
 /// 現在のウィンドウの状態を記録しておく場所。終了時にファイルへ書き出す。
-#[derive(Default)]
-pub struct WindowStateStore(Mutex<Option<WindowState>>);
+/// ファイルは環境ごとに分ける（ADR 0014）
+pub struct WindowStateStore {
+    env: Environment,
+    state: Mutex<Option<WindowState>>,
+}
+
+impl WindowStateStore {
+    pub fn new(env: Environment) -> Self {
+        Self {
+            env,
+            state: Mutex::new(None),
+        }
+    }
+}
 
 fn state_path<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
+    let env = app.state::<WindowStateStore>().env;
     app.path()
         .app_config_dir()
         .ok()
-        .map(|dir| dir.join(FILENAME))
+        .map(|dir| dir.join(env.dir_name()).join(FILENAME))
 }
 
 fn load<R: Runtime>(app: &AppHandle<R>) -> Option<WindowState> {
@@ -98,7 +113,7 @@ fn load<R: Runtime>(app: &AppHandle<R>) -> Option<WindowState> {
 
 /// 記録した状態をファイルに書き出す。
 pub fn save<R: Runtime>(app: &AppHandle<R>) {
-    let Some(state) = *app.state::<WindowStateStore>().0.lock().unwrap() else {
+    let Some(state) = *app.state::<WindowStateStore>().state.lock().unwrap() else {
         return;
     };
     let Some(path) = state_path(app) else {
@@ -134,7 +149,7 @@ fn current_state<R: Runtime>(window: &WebviewWindow<R>) -> Option<WindowState> {
 
 fn record<R: Runtime>(window: &WebviewWindow<R>) {
     if let Some(state) = current_state(window) {
-        *window.state::<WindowStateStore>().0.lock().unwrap() = Some(state);
+        *window.state::<WindowStateStore>().state.lock().unwrap() = Some(state);
     }
 }
 

@@ -1,7 +1,7 @@
 // 画面を作るための合成データ。実在の作品とは関係がない（CLAUDE.md の境界）。
 // 取り込み（ADR 0005）を実装したら、SQLite から読むものに置き換える。
 
-import type { Chapter, Episode, Novel, SourceName, UnaddedNovel } from "./models";
+import type { Chapter, Episode, Novel, SourceName } from "./models";
 
 type NovelSeed = {
   sourceName: SourceName;
@@ -177,8 +177,3 @@ function buildNovels(): Novel[] {
 }
 
 export const sampleNovels: Novel[] = buildNovels();
-
-export const sampleUnadded: UnaddedNovel[] = [
-  { sourceName: "narou", sourceId: "n0004dd", url: "https://example.com/narou/n0004dd/" },
-  { sourceName: "kakuyomu", sourceId: "1000000000000000002", url: "https://example.com/kakuyomu/1000000000000000002/" },
-];

@@ -1,4 +1,4 @@
-//! epubize の SQLite（ADR 0003、ADR 0013）。
+//! epubize の SQLite（ADR 0003、ADR 0013、ADR 0014）。
 
 pub mod migrate;
 
@@ -8,14 +8,16 @@ use std::{fmt, fs, io};
 
 use rusqlite::Connection;
 
+use crate::environment::Environment;
+
 /// `tauri.conf.json` の `identifier` と同じ値。アプリ用データ領域のディレクトリ名になる
 pub const IDENTIFIER: &str = "com.github.tett23.epubize";
 
 pub const FILENAME: &str = "epubize.sqlite3";
 
-/// アプリが使うデータベースのパス。Tauri の `app_data_dir` と同じ場所に置く
-pub fn default_path() -> Option<PathBuf> {
-    dirs::data_dir().map(|dir| dir.join(IDENTIFIER).join(FILENAME))
+/// アプリが使うデータベースのパス。Tauri の `app_data_dir` の下に、環境ごとのディレクトリを作って置く
+pub fn default_path(env: Environment) -> Option<PathBuf> {
+    dirs::data_dir().map(|dir| dir.join(IDENTIFIER).join(env.dir_name()).join(FILENAME))
 }
 
 /// アプリが持つデータベースへの接続
@@ -148,6 +150,14 @@ mod tests {
     fn remove_ignores_missing_files() {
         let dir = tempfile::tempdir().unwrap();
         remove(&dir.path().join(FILENAME)).unwrap();
+    }
+
+    #[test]
+    fn default_path_separates_environments() {
+        let dev = default_path(Environment::Development).unwrap();
+        let prod = default_path(Environment::Production).unwrap();
+        assert!(dev.ends_with(format!("{IDENTIFIER}/development/{FILENAME}")));
+        assert!(prod.ends_with(format!("{IDENTIFIER}/production/{FILENAME}")));
     }
 
     #[test]

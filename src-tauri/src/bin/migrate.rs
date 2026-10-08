@@ -7,12 +7,14 @@
 //!   reset        データベースのファイルを消し、全てのマイグレーションを流し直す
 //!
 //! データベースのパスは --db、環境変数 EPUBIZE_DB、アプリの既定の場所の順に決める。
+//! 既定の場所は環境（EPUBIZE_ENV、なければ debug ビルドの development）ごとに分かれる（ADR 0014）。
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::{env, fs};
 
 use epubize_lib::db::{self, migrate};
+use epubize_lib::environment::Environment;
 
 const USAGE: &str = "usage: migrate [--db <path>] <up|status|new <name>|reset>";
 
@@ -40,8 +42,12 @@ fn run(mut args: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
         db_arg
             .clone()
             .or_else(|| env::var_os("EPUBIZE_DB").map(PathBuf::from))
-            .or_else(db::default_path)
-            .ok_or_else(|| "cannot determine the database path; pass --db".into())
+            .map(Ok)
+            .unwrap_or_else(|| {
+                db::default_path(Environment::current()?)
+                    .ok_or_else(|| "cannot determine the database path; pass --db".to_owned())
+            })
+            .map_err(Into::into)
     };
 
     match args
