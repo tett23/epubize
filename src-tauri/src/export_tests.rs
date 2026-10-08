@@ -65,6 +65,7 @@ fn book(episodes: Vec<Episode>) -> Book {
         author: "見本 太郎".into(),
         description: "あらすじ".into(),
         vertical: true,
+        remove_empty_line: true,
         episodes,
         images: HashMap::new(),
     }
@@ -94,6 +95,7 @@ fn loads_fetched_episodes_of_a_novel() {
     assert_eq!(book.title, "合成データの作品");
     assert_eq!(book.author, "見本 太郎");
     assert!(book.vertical);
+    assert!(book.remove_empty_line);
     // 本文のない 2 話目は入れない
     assert_eq!(book.episodes.len(), 1);
     assert_eq!(book.episodes[0].title, "第1話");
@@ -144,6 +146,22 @@ fn reads_direction_from_normalize_options() {
 }
 
 #[test]
+fn reads_remove_empty_line_from_normalize_options() {
+    let (conn, id) = database();
+    conn.execute(
+        "UPDATE novels SET normalize_options = '{\"removeEmptyLine\":false}' WHERE id = ?1",
+        [id],
+    )
+    .unwrap();
+    assert!(!load(&conn, Scope::Novel(id)).unwrap().remove_empty_line);
+    assert!(removes_empty_line(None));
+    assert!(removes_empty_line(Some("{\"removeEmptyLine\":true}")));
+    // 型の合わない値は既定（画面の resolveNormalizeOptions と同じ）
+    assert!(removes_empty_line(Some("{\"removeEmptyLine\":\"no\"}")));
+    assert!(removes_empty_line(Some("not json")));
+}
+
+#[test]
 fn deserializes_scope_from_the_frontend() {
     let scope: Scope = serde_json::from_str(r#"{"kind":"novel","id":3}"#).unwrap();
     assert_eq!(scope, Scope::Novel(3));
@@ -166,11 +184,14 @@ fn writes_book_toml_and_stylesheet() {
          description = \"あらすじ\"\n\
          page_progression_direction = \"rtl\"\n"
     );
-    assert!(read(dir.path().join("assets/style.css")).contains("writing-mode: vertical-rl"));
+    let css = read(dir.path().join("assets/style.css"));
+    assert!(css.contains("writing-mode: vertical-rl"));
+    assert!(css.contains("p {\n  margin: 0;\n}"));
 
     // 横書きでは左から右へ送り、縦書きの指定をしない。空の作者とあらすじは書かない
     let dir = tempfile::tempdir().unwrap();
     book.vertical = false;
+    book.remove_empty_line = false;
     book.author = " ".into();
     book.description = String::new();
     write_project(dir.path(), &book).unwrap();
@@ -178,7 +199,10 @@ fn writes_book_toml_and_stylesheet() {
     assert!(toml.contains("page_progression_direction = \"ltr\""));
     assert!(!toml.contains("authors"));
     assert!(!toml.contains("description"));
-    assert!(!read(dir.path().join("assets/style.css")).contains("writing-mode"));
+    let css = read(dir.path().join("assets/style.css"));
+    assert!(!css.contains("writing-mode"));
+    // 段落の余白はリーダーの既定に任せる
+    assert!(!css.contains("p {"));
 }
 
 #[test]

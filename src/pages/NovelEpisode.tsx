@@ -109,10 +109,12 @@ function Preview({ episode, options }: { episode: EpisodeDetail; options: Normal
     options.direction === "vertical"
       ? "h-[40rem] w-full overflow-x-auto [writing-mode:vertical-rl]"
       : "max-w-[40rem] [writing-mode:horizontal-tb]";
+  // EPUB と同じく、removeEmptyLine が無効なら段落の間を 1 行分空ける（ADR 0030）
+  const paragraphs = options.removeEmptyLine ? "" : "[&_p]:[margin-block:1em]";
 
   return (
     <div
-      className={`novel-body rounded border border-neutral-200 p-6 font-serif leading-loose dark:border-neutral-700 ${layout}`}
+      className={`novel-body rounded border border-neutral-200 p-6 font-serif leading-loose dark:border-neutral-700 ${layout} ${paragraphs}`}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: renderMarkdown が DOMPurify で安全化した HTML
       dangerouslySetInnerHTML={{ __html: html }}
     />

@@ -40,6 +40,8 @@ pub struct Book {
     pub description: String,
     /// 縦書きか。整形の設定の組方向（ADR 0011）から決める
     pub vertical: bool,
+    /// 段落の間の余白をなくすか。整形の設定の removeEmptyLine（ADR 0030）
+    pub remove_empty_line: bool,
     pub episodes: Vec<Episode>,
     /// 挿絵の URL から、取得済みの画像へ
     pub images: HashMap<String, Image>,
@@ -168,16 +170,29 @@ pub fn load(conn: &Connection, scope: Scope) -> Result<Book, String> {
         author,
         description,
         vertical: is_vertical(options.as_deref()),
+        remove_empty_line: removes_empty_line(options.as_deref()),
         episodes,
         images,
     })
 }
 
+/// 整形の設定の項目。設定がない、または読めなければ None
+fn option(options: Option<&str>, key: &str) -> Option<serde_json::Value> {
+    let value: serde_json::Value = serde_json::from_str(options?).ok()?;
+    value.get(key).cloned()
+}
+
 /// 整形の設定の組方向。設定がない、または読めなければ縦書き（既定）
 fn is_vertical(options: Option<&str>) -> bool {
-    options
-        .and_then(|text| serde_json::from_str::<serde_json::Value>(text).ok())
-        .and_then(|value| value.get("direction")?.as_str().map(|d| d != "horizontal"))
+    option(options, "direction")
+        .and_then(|d| d.as_str().map(|d| d != "horizontal"))
+        .unwrap_or(true)
+}
+
+/// 整形の設定の removeEmptyLine。設定がない、または読めなければ有効（既定）
+fn removes_empty_line(options: Option<&str>) -> bool {
+    option(options, "removeEmptyLine")
+        .and_then(|v| v.as_bool())
         .unwrap_or(true)
 }
 
@@ -200,7 +215,11 @@ pub fn write_project(dir: &Path, book: &Book) -> Result<(), String> {
     fs::create_dir_all(dir.join("body")).map_err(io)?;
     fs::create_dir_all(dir.join("assets/images")).map_err(io)?;
     fs::write(dir.join("book.toml"), book_toml(book)).map_err(io)?;
-    fs::write(dir.join("assets/style.css"), stylesheet(book.vertical)).map_err(io)?;
+    fs::write(
+        dir.join("assets/style.css"),
+        stylesheet(book.vertical, book.remove_empty_line),
+    )
+    .map_err(io)?;
 
     // 挿絵は、話の中で最初に現れた順に番号を振って assets/images に置く
     let mut names: HashMap<&str, String> = HashMap::new();
@@ -360,12 +379,18 @@ fn toml_string(value: &str) -> String {
     quoted
 }
 
-fn stylesheet(vertical: bool) -> String {
+/// 本文は 1 行が 1 段落になっている（ADR 0009）。removeEmptyLine が有効なら段落の余白をなくし、
+/// 行の間が空かないようにする。無効なら余白を指定せず、リーダーの既定の余白で段落の間を空ける。
+/// 作者の入れた空行（`<br>` だけの段落）は、どちらでも 1 行分残る
+fn stylesheet(vertical: bool, remove_empty_line: bool) -> String {
     let mut css = String::new();
     if vertical {
         css.push_str(
             "html {\n  writing-mode: vertical-rl;\n  -webkit-writing-mode: vertical-rl;\n  -epub-writing-mode: vertical-rl;\n}\n",
         );
+    }
+    if remove_empty_line {
+        css.push_str("p {\n  margin: 0;\n}\n");
     }
     css.push_str("img {\n  max-width: 100%;\n  max-height: 100%;\n}\n");
     css

@@ -159,6 +159,18 @@ test.describe("話のページ", () => {
     await page.getByLabel("horizontal").check();
     await expect(preview).toHaveCSS("writing-mode", "horizontal-tb");
   });
+
+  test("removeEmptyLine を無効にすると、プレビューの段落の間を空ける", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "合成データの作品" }).click();
+    await page.getByRole("link", { name: "第1話　合成データの話" }).click();
+    await page.getByLabel("horizontal").check();
+    const paragraph = page.locator(".novel-body p").first();
+    await expect(paragraph).toHaveCSS("margin-top", "0px");
+    await page.getByLabel("removeEmptyLine").uncheck();
+    await expect(paragraph).toHaveCSS("margin-top", "16px");
+  });
 });
 
 test.describe("管理画面の定期取得", () => {
