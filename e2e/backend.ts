@@ -264,3 +264,12 @@ export function emit(page: Page, event: string, payload: unknown): Promise<void>
     [event, payload] as const,
   );
 }
+
+/** 呼ばれたコマンドと引数の一覧。イベントの購読などの内部のコマンドは除く */
+export function calls(page: Page): Promise<{ cmd: string; args: Record<string, unknown> }[]> {
+  return page.evaluate(() =>
+    (
+      window as unknown as { __epubize: { calls: { cmd: string; args: Record<string, unknown> }[] } }
+    ).__epubize.calls.filter((c) => !c.cmd.startsWith("plugin:")),
+  );
+}
