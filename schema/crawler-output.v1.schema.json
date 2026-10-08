@@ -125,7 +125,11 @@
           ]
         },
         "message": { "type": "string" },
-        "status": { "description": "HTTP status when the failure was an HTTP response", "type": ["integer", "null"] }
+        "status": { "description": "HTTP status when the failure was an HTTP response", "type": ["integer", "null"] },
+        "retryAfter": {
+          "description": "For rate_limited: when the caller may fetch again, from the HTTP Retry-After header. Optional; null or absent when unknown",
+          "$ref": "#/$defs/nullableDateTime"
+        }
       }
     }
   }
