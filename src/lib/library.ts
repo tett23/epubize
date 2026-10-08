@@ -1,8 +1,8 @@
 import { episodesOf, partsOf, type Episode, type Novel } from "../models";
 import { formatDate } from "./format";
 
-/** 1 回の取得にかかる秒数の目安 */
-const SECONDS_PER_FETCH = 10;
+/** 1 回の取得にかかる秒数の目安。取得の間隔（ADR 0015）に揃える */
+const SECONDS_PER_FETCH = 5;
 
 export type LibraryStats = {
   novels: number;
