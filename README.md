@@ -21,6 +21,14 @@ git config core.hooksPath .githooks
 
 コミット済みの ADR は、ステータス行以外を変更できない([ADR 0002](docs/adr/0002-immutable-adrs.md))。
 
+GUI は Tauri + React + TypeScript で、パッケージ管理は pnpm を使う([ADR 0006](docs/adr/0006-react-typescript-pnpm-frontend.md))。
+Node.js、pnpm、Rust が必要になる。
+
+```bash
+pnpm install
+pnpm tauri dev
+```
+
 ## ライセンス
 
 [MIT](LICENSE)
