@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
-import { fetchAll, fetchAllMetadata, fetchStatus, onFetchDone, type FetchDone, type FetchStatus } from "../data";
+import {
+  fetchAll,
+  fetchAllMetadata,
+  fetchSchedule,
+  fetchStatus,
+  onFetchDone,
+  onScheduledFetch,
+  type FetchDone,
+  type FetchSchedule,
+  type FetchStatus,
+} from "../data";
 import { Button, ButtonGroup } from "./ui";
 
 /** 画面に残す取得の結果の数 */
@@ -10,11 +20,26 @@ const POLL_MS = 1000;
 
 type Message = { kind: "info" | "error"; text: string };
 
-/** fetch all と fetch all metadata、取得のキューの状態（ADR 0015、ADR 0016、ADR 0018） */
+/** fetch all と fetch all metadata、取得のキューの状態、定期取得（ADR 0015、ADR 0016、ADR 0018、ADR 0019） */
 export function FetchPanel() {
   const [status, setStatus] = useState<FetchStatus | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
   const [results, setResults] = useState<FetchDone[]>([]);
+  const [schedule, setSchedule] = useState<FetchSchedule | null>(null);
+
+  useEffect(() => {
+    fetchSchedule().then(setSchedule, () => setSchedule(null));
+    const unlisten = onScheduledFetch((result) =>
+      setMessage(
+        "Ok" in result
+          ? { kind: "info", text: `定期取得: キューを空にして、${result.Ok} 作品の目次、本文、挿絵の取得を積みました` }
+          : { kind: "error", text: `定期取得: ${result.Err}` },
+      ),
+    );
+    return () => {
+      void unlisten.then((stop) => stop(), () => undefined);
+    };
+  }, []);
 
   useEffect(() => {
     const load = () => fetchStatus().then(setStatus, () => setStatus(null));
@@ -55,6 +80,9 @@ export function FetchPanel() {
           <span className="text-sm text-neutral-600 dark:text-neutral-400">
             {status.configured ? `キュー: ${status.queued} 件` : "クローラーが見つかりません（PATH の novel-crawler）"}
           </span>
+        )}
+        {schedule?.enabled && (
+          <span className="text-sm text-neutral-600 dark:text-neutral-400">毎日 {schedule.at} に fetch all</span>
         )}
       </div>
       {message && (

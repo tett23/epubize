@@ -4,6 +4,7 @@ pub mod environment;
 pub mod fetch;
 pub mod library;
 pub mod pipeline;
+pub mod schedule;
 pub mod subscriptions;
 mod window_state;
 
@@ -20,6 +21,7 @@ pub fn run() {
             commands::list_subscriptions,
             commands::add_subscription,
             commands::fetch_status,
+            commands::fetch_schedule,
             commands::fetch_all,
             commands::fetch_all_metadata,
             commands::add_novel,
@@ -45,6 +47,9 @@ pub fn run() {
             app.manage(Paths { env, subscriptions });
             app.manage(window_state::WindowStateStore::new(env));
             app.manage(commands::fetch_state(app.handle()));
+            let schedule = schedule::Schedule::default();
+            app.manage(schedule);
+            commands::start_scheduled_fetch(app.handle().clone(), schedule);
 
             let window = app
                 .get_webview_window("main")

@@ -28,7 +28,7 @@ rusqlite = { version = "0.40.2", features = ["bundled"] }
 dirs = "7.0.0"
 tokio = { version = "1", features = ["rt", "sync", "time", "process", "macros"] }
 url = "2"
-chrono = { version = "0.4.45", default-features = false, features = ["std", "now"] }
+chrono = { version = "0.4.45", default-features = false, features = ["std", "now", "clock"] }
 jsonschema = { version = "0.58.6", default-features = false }
 base64 = "0.23.1"
 

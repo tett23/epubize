@@ -115,3 +115,22 @@ export function onFetchDone(listener: (done: FetchDone) => void): Promise<() => 
   }
   return listen<FetchDone>("fetch-done", (event) => listener(event.payload));
 }
+
+export type FetchSchedule = {
+  enabled: boolean;
+  /** 毎日の時刻（ローカル時刻、`HH:MM`） */
+  at: string;
+};
+
+/** 定期取得の設定（ADR 0019） */
+export function fetchSchedule(): Promise<FetchSchedule> {
+  return invoke<FetchSchedule>("fetch_schedule");
+}
+
+/** 定期取得で fetch all を行ったときに呼ばれる。積んだ作品の数か、失敗の理由を受け取る */
+export function onScheduledFetch(listener: (result: { Ok: number } | { Err: string }) => void): Promise<() => void> {
+  if (!isTauri()) {
+    return Promise.resolve(() => undefined);
+  }
+  return listen<{ Ok: number } | { Err: string }>("scheduled-fetch", (event) => listener(event.payload));
+}

@@ -144,6 +144,45 @@ fn requeue_all(paths: &Paths, fetcher: &Fetcher, follow_up: bool) -> Result<usiz
     Ok(total)
 }
 
+/// 毎日決めた時刻に fetch all を行う（ADR 0019）。クローラーが見つからなければ何もしない
+pub fn start_scheduled_fetch(app: AppHandle, schedule: crate::schedule::Schedule) {
+    tauri::async_runtime::spawn(crate::schedule::run_daily(
+        schedule,
+        crate::schedule::local_now,
+        move || {
+            let app = app.clone();
+            async move {
+                let paths = app.state::<Paths>();
+                let fetch = app.state::<FetchState>();
+                let Some(fetcher) = &fetch.0 else {
+                    return;
+                };
+                let result = requeue_all(&paths, fetcher, true);
+                let _ = app.emit(SCHEDULED_FETCH, result.map_err(|e| e.to_string()));
+            }
+        },
+    ));
+}
+
+/// 定期取得で fetch all を行ったことを画面に知らせるイベント。積んだ作品の数か、失敗の理由を送る
+const SCHEDULED_FETCH: &str = "scheduled-fetch";
+
+#[derive(serde::Serialize)]
+pub struct ScheduleInfo {
+    enabled: bool,
+    /// 毎日の時刻（ローカル時刻、`HH:MM`）
+    at: String,
+}
+
+/// 定期取得の設定（ADR 0019）。画面に表示する
+#[tauri::command]
+pub fn fetch_schedule(schedule: State<'_, crate::schedule::Schedule>) -> ScheduleInfo {
+    ScheduleInfo {
+        enabled: schedule.enabled,
+        at: schedule.at.format("%H:%M").to_string(),
+    }
+}
+
 #[tauri::command]
 pub fn fetch_all(paths: State<'_, Paths>, fetch: State<'_, FetchState>) -> Result<usize, String> {
     requeue_all(&paths, fetcher(&fetch)?, true)
