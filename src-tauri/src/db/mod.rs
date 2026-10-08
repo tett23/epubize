@@ -1,6 +1,8 @@
 //! epubize の SQLite（ADR 0003、ADR 0013、ADR 0014）。
 
 pub mod migrate;
+#[cfg(test)]
+mod schema_tests;
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;

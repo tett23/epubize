@@ -47,6 +47,10 @@
         },
         "description": { "type": "string" },
         "episodeCount": { "type": "integer", "minimum": 0 },
+        "isConcluded": {
+          "description": "Whether the site marks the novel as finished. Optional; null or absent when unknown",
+          "type": ["boolean", "null"]
+        },
         "fetchedAt": { "$ref": "#/$defs/dateTime" }
       }
     },
