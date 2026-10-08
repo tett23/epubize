@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use serde_json::Value;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use crate::db::Database;
 use crate::environment::Environment;
@@ -85,7 +85,11 @@ struct FetchDone {
 const FETCH_DONE: &str = "fetch-done";
 
 /// 取得の結果を保存し、続く取得を積んで、画面に知らせる（ADR 0018）
-fn on_done(app: &AppHandle, request: Request, result: Result<String, fetch::crawler::CrawlError>) {
+fn on_done<R: Runtime>(
+    app: &AppHandle<R>,
+    request: Request,
+    result: Result<String, fetch::crawler::CrawlError>,
+) {
     let outcome = result.map_err(|e| e.to_string()).and_then(|stdout| {
         let database = app.state::<Database>();
         let mut conn = database.0.lock().map_err(|e| e.to_string())?;
@@ -119,7 +123,7 @@ fn crawler(settings: &Settings) -> Option<ProcessCrawler> {
     }
 }
 
-pub fn fetch_state(app: &AppHandle, settings: &Settings) -> FetchState {
+pub fn fetch_state<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> FetchState {
     let queues = Queues::new(tauri::async_runtime::handle().inner().clone());
     let handle = app.clone();
     let done: fetch::OnDone = Arc::new(move |request, result| on_done(&handle, request, result));
@@ -172,7 +176,7 @@ fn requeue_all(paths: &Paths, fetcher: &Fetcher, follow_up: bool) -> Result<usiz
 pub struct ScheduleState(pub RwLock<Schedule>);
 
 /// 毎日決めた時刻に fetch all を行う（ADR 0019）。設定は見るたびに読み直す。クローラーがなければ何もしない
-pub fn start_scheduled_fetch(app: AppHandle) {
+pub fn start_scheduled_fetch<R: Runtime>(app: AppHandle<R>) {
     let reader = app.clone();
     tauri::async_runtime::spawn(crate::schedule::run_daily(
         move || *reader.state::<ScheduleState>().0.read().unwrap(),
@@ -514,3 +518,7 @@ pub fn set_normalize_options(
     let conn = database.0.lock().map_err(|e| e.to_string())?;
     query::set_normalize_options(&conn, novel_id, options.as_ref())
 }
+
+#[cfg(test)]
+#[path = "commands_tests.rs"]
+mod app_tests;
