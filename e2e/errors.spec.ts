@@ -67,3 +67,20 @@ test("購読を外すのに失敗したら理由を出し、一覧に残す", as
   await expect(page.getByRole("link", { name: "narou-n0002bb" })).toBeVisible();
   expect(await calledCommands(page)).toContain("remove_subscription");
 });
+
+test("取得が続けて終わっても、読み直しは 1 回にまとめる", async ({ page }) => {
+  await installBackend(page);
+  await page.goto("/");
+  await expect(page.getByText("(1 / 2)")).toBeVisible();
+  const listNovelsCalls = async () => (await calledCommands(page)).filter((c) => c === "list_novels").length;
+  // 読み込みが落ち着くのを待つ
+  await page.waitForTimeout(700);
+  const before = await listNovelsCalls();
+
+  for (let i = 0; i < 5; i++) {
+    await emit(page, "fetch-done", { command: "episode", url: `https://example.com/${i}`, error: null });
+  }
+  await page.waitForTimeout(1000);
+  // トップは作品の一覧と未取得の一覧で、それぞれ list_novels を 1 回ずつ呼ぶ
+  expect((await listNovelsCalls()) - before).toBe(2);
+});
