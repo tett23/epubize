@@ -58,7 +58,6 @@ function Novel({ novel, reload }: { novel: NovelDetailData; reload: () => void }
         </ActionButton>
         <PendingButton>download zip</PendingButton>
         <PendingButton>download epub</PendingButton>
-        <PendingButton>download mobi</PendingButton>
         <PendingButton>send to Kindle</PendingButton>
       </ButtonGroup>
       <NormalizeOptionsForm novelId={novel.id} {...normalize} />
@@ -72,7 +71,7 @@ function Episodes({ novel }: { novel: NovelDetailData }) {
     <table className="border-collapse">
       <tbody>
         <tr>
-          <th colSpan={3} className="pb-1 text-left font-bold">
+          <th colSpan={4} className="pb-1 text-left font-bold">
             {novel.title}
           </th>
         </tr>
@@ -80,7 +79,7 @@ function Episodes({ novel }: { novel: NovelDetailData }) {
           <Fragment key={chapter.episodes[0]?.id ?? chapter.title}>
             {chapter.title != null && (
               <tr>
-                <th colSpan={3} className="pt-4 pb-1 pl-2 text-left font-bold">
+                <th colSpan={4} className="pt-4 pb-1 pl-2 text-left font-bold">
                   {chapter.title}
                 </th>
               </tr>
@@ -93,6 +92,15 @@ function Episodes({ novel }: { novel: NovelDetailData }) {
                 <td className="py-1.5 pr-4 text-right tabular-nums">{episode.no}</td>
                 <td className="py-1.5">
                   <EpisodeTitle episode={episode}>{episode.title}</EpisodeTitle> {episode.sentAt && <SentMark />}
+                </td>
+                <td className="py-1.5 pl-4">
+                  {/* 本文を取得済みの話だけ。EPUB の生成と送信はまだ実装していない（ADR 0021） */}
+                  {episode.bodyFetchedAt && (
+                    <ButtonGroup>
+                      <PendingButton>download epub</PendingButton>
+                      <PendingButton>send to Kindle</PendingButton>
+                    </ButtonGroup>
+                  )}
                 </td>
               </tr>
             ))}

@@ -235,3 +235,32 @@ test.describe("管理画面の epub-builder", () => {
     );
   });
 });
+
+test.describe("話ごとの EPUB と送信", () => {
+  test("本文を取得済みの話だけに、話の題名の後ろに download epub と send to Kindle を出す", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "合成データの作品" }).click();
+
+    const fetched = page.getByRole("row").filter({ hasText: "第1話　合成データの話" });
+    await expect(fetched.getByRole("button", { name: "download epub" })).toBeDisabled();
+    await expect(fetched.getByRole("button", { name: "send to Kindle" })).toBeDisabled();
+    // 話の題名の列の後ろに並ぶ
+    const cells = fetched.getByRole("cell");
+    await expect(cells.nth(2)).toContainText("第1話　合成データの話");
+    await expect(cells.nth(3).getByRole("button", { name: "download epub" })).toBeVisible();
+
+    const unfetched = page.getByRole("row").filter({ hasText: "第2話　合成データの話" });
+    await expect(unfetched.getByRole("button")).toHaveCount(0);
+  });
+
+  test("mobi のボタンはどこにも出さない", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "合成データの作品" }).click();
+    await expect(page.getByRole("button", { name: /mobi/ })).toHaveCount(0);
+    await page.getByRole("link", { name: "第1話　合成データの話" }).click();
+    await expect(page.getByRole("heading", { name: "1: 第1話　合成データの話" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /mobi/ })).toHaveCount(0);
+  });
+});

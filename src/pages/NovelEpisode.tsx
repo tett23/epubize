@@ -52,7 +52,6 @@ function Episode({ novel, episode }: { novel: NovelDetail; episode: EpisodeDetai
         <ActionButton action={() => refetchEpisode(episode.id)}>refetch</ActionButton>
         <PendingButton>download zip</PendingButton>
         <PendingButton>download epub</PendingButton>
-        <PendingButton>download mobi</PendingButton>
         <PendingButton>send to Kindle</PendingButton>
       </ButtonGroup>
       <p className="text-sm text-neutral-700 dark:text-neutral-300">
