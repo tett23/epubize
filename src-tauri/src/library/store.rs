@@ -394,6 +394,65 @@ mod tests {
     }
 
     #[test]
+    fn does_not_refetch_when_revision_date_disappears() {
+        let mut conn = database();
+        let id = save_toc(
+            &mut conn,
+            &subscription(),
+            &toc(&[(1, Some("2026-01-01T00:00:00Z"))]),
+        )
+        .unwrap();
+        save_episode(&mut conn, &parse(&fixtures::episode(1, &[])).unwrap()).unwrap();
+        assert!(episodes_to_fetch(&conn, id).unwrap().is_empty());
+
+        // サイトが改稿日時を出さなくなっても、改稿とはみなさない
+        save_toc(&mut conn, &subscription(), &toc(&[(1, None)])).unwrap();
+        assert!(episodes_to_fetch(&conn, id).unwrap().is_empty());
+
+        // 同じ改稿日時のままなら取り直さない
+        save_toc(
+            &mut conn,
+            &subscription(),
+            &toc(&[(1, Some("2026-01-01T09:00:00+09:00"))]),
+        )
+        .unwrap();
+        assert!(episodes_to_fetch(&conn, id).unwrap().is_empty());
+    }
+
+    #[test]
+    fn refetched_toc_updates_novel_metadata() {
+        let mut conn = database();
+        let id = save_toc(&mut conn, &subscription(), &toc(&[(1, None)])).unwrap();
+
+        let mut novel: serde_json::Value = serde_json::from_str(fixtures::NOVEL).unwrap();
+        novel["title"] = "改題した合成データの作品".into();
+        novel["author"] =
+            serde_json::json!({"name": "改名した作者", "url": "https://example.com/a/"});
+        novel["isConcluded"] = true.into();
+        novel["episodeCount"] = 1.into();
+        let lines = [novel.to_string(), fixtures::toc_entry(1, None)].join("\n");
+        save_toc(&mut conn, &subscription(), &parse(&lines).unwrap()).unwrap();
+
+        let row: (String, String, Option<String>, bool, i64) = conn
+            .query_row(
+                "SELECT title, author_name, author_url, is_concluded, episode_count FROM novels WHERE id = ?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            row,
+            (
+                "改題した合成データの作品".to_owned(),
+                "改名した作者".to_owned(),
+                Some("https://example.com/a/".to_owned()),
+                true,
+                1
+            )
+        );
+    }
+
+    #[test]
     fn saves_episode_and_reports_missing_images() {
         let mut conn = database();
         save_toc(&mut conn, &subscription(), &toc(&[(1, None)])).unwrap();
