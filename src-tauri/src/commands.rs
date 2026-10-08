@@ -238,6 +238,14 @@ pub struct SettingsView {
     send_to_kindle_in_use: Option<String>,
     /// send-to-kindle を指定しなかったときに自動で見つかるもの
     send_to_kindle_found: Option<String>,
+    /// いま使う kindlegen の実行ファイル。見つからなければ null（ADR 0032）
+    kindlegen_in_use: Option<String>,
+    /// kindlegen を指定しなかったときに自動で見つかるもの
+    kindlegen_found: Option<String>,
+    /// いま使う striptool の実行ファイル。見つからなければ null（ADR 0032）
+    striptool_in_use: Option<String>,
+    /// striptool を指定しなかったときに自動で見つかるもの
+    striptool_found: Option<String>,
     /// .env を指定しなかったときに使うもの（ADR 0028）
     send_to_kindle_env_default: String,
     /// .env.example を指定しなかったときに使うもの
@@ -267,6 +275,10 @@ pub fn get_settings(paths: State<'_, Paths>) -> SettingsView {
         epub_builder_found: crate::epub::find().map(|p| path(&p)),
         send_to_kindle_in_use: crate::kindle::send_to_kindle(&settings).map(|p| path(&p)),
         send_to_kindle_found: crate::kindle::find().map(|p| path(&p)),
+        kindlegen_in_use: crate::mobi::kindlegen(&settings).map(|p| path(&p)),
+        kindlegen_found: crate::mobi::find_kindlegen().map(|p| path(&p)),
+        striptool_in_use: crate::mobi::striptool(&settings).map(|p| path(&p)),
+        striptool_found: crate::mobi::find_striptool().map(|p| path(&p)),
         send_to_kindle_env_default: path(&crate::kindle::env_path(&Settings::default(), data_dir)),
         send_to_kindle_env_example_default: path(&crate::kindle::env_example_path(
             &Settings::default(),
@@ -340,6 +352,8 @@ mod tests {
             send_to_kindle_path: None,
             send_to_kindle_env_path: None,
             send_to_kindle_env_example_path: None,
+            kindlegen_path: None,
+            striptool_path: None,
             schedule: ScheduleSettings {
                 enabled: false,
                 at: "04:30".into(),
@@ -601,6 +615,36 @@ pub async fn download_epub(
     export::write_project(&project, &book)?;
     let output = export::unique_path(downloads(&paths)?, &export::file_name(&book.title), "epub");
     export::build_epub(&program, &project, &output).await?;
+    Ok(output.to_string_lossy().into_owned())
+}
+
+/// 作品か話の EPUB 3.0 を作り、kindlegen で MOBI にして striptool で元の EPUB を取り除き、
+/// ダウンロードのディレクトリに書く。書いたパスを返す（ADR 0032）
+#[tauri::command]
+pub async fn download_mobi(
+    scope: export::Scope,
+    database: State<'_, Database>,
+    paths: State<'_, Paths>,
+) -> Result<String, String> {
+    let book = load_book(&database, scope)?;
+    let settings = current_settings(&paths);
+    let builder = epub_builder(&settings)?;
+    let kindlegen = crate::mobi::kindlegen(&settings)
+        .ok_or("kindlegen が見つかりません。管理画面で実行ファイルを指定してください")?;
+    let striptool = crate::mobi::striptool(&settings)
+        .ok_or("striptool が見つかりません。管理画面で実行ファイルを指定してください")?;
+    let work = temp_dir()?;
+    let project = work.path().join("project");
+    export::write_project(&project, &book)?;
+    // kindlegen と striptool は EPUB の隣に書くため、ほかのファイルのないディレクトリに EPUB を置く
+    let build = work.path().join("build");
+    std::fs::create_dir_all(&build).map_err(|e| e.to_string())?;
+    let stem = export::file_name(&book.title);
+    let epub = build.join(format!("{stem}.epub"));
+    export::build_epub(&builder, &project, &epub).await?;
+    let mobi = crate::mobi::build_mobi(&kindlegen, &striptool, &epub).await?;
+    let output = export::unique_path(downloads(&paths)?, &stem, "mobi");
+    std::fs::copy(&mobi, &output).map_err(|e| e.to_string())?;
     Ok(output.to_string_lossy().into_owned())
 }
 

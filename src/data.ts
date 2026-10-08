@@ -143,6 +143,11 @@ export function downloadEpub(scope: ExportScope): Promise<string> {
   return invoke<string>("download_epub", { scope });
 }
 
+/** EPUB 3.0 を kindlegen で MOBI にし、striptool で元の EPUB を取り除いて書く。書いたパスを返す（ADR 0032） */
+export function downloadMobi(scope: ExportScope): Promise<string> {
+  return invoke<string>("download_mobi", { scope });
+}
+
 /** epub-builder のプロジェクトを zip にして、ダウンロードのディレクトリに書く。書いたパスを返す */
 export function downloadZip(scope: ExportScope): Promise<string> {
   return invoke<string>("download_zip", { scope });
@@ -170,6 +175,10 @@ export type Settings = {
   sendToKindleEnvPath: string | null;
   /** .env に要るキーを並べた .env.example（ADR 0028） */
   sendToKindleEnvExamplePath: string | null;
+  /** kindlegen の実行ファイル。null なら自動で探す（ADR 0032） */
+  kindlegenPath: string | null;
+  /** striptool の実行ファイル。null なら自動で探す（ADR 0032） */
+  striptoolPath: string | null;
   schedule: { enabled: boolean; at: string };
 };
 
@@ -195,6 +204,14 @@ export type SettingsView = {
   sendToKindleInUse: string | null;
   /** send-to-kindle を指定しなかったときに自動で見つかるもの */
   sendToKindleFound: string | null;
+  /** いま使う kindlegen の実行ファイル */
+  kindlegenInUse: string | null;
+  /** kindlegen を指定しなかったときに自動で見つかるもの */
+  kindlegenFound: string | null;
+  /** いま使う striptool の実行ファイル */
+  striptoolInUse: string | null;
+  /** striptool を指定しなかったときに自動で見つかるもの */
+  striptoolFound: string | null;
   /** .env を指定しなかったときに使うもの。環境ごとのアプリ用データ領域の .env（ADR 0028） */
   sendToKindleEnvDefault: string;
   /** .env.example を指定しなかったときに使うもの */

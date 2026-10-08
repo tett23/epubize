@@ -45,6 +45,10 @@ pub struct Settings {
     pub send_to_kindle_env_path: Option<String>,
     /// .env に要るキーを並べた .env.example。null ならアプリ用データ領域の .env.example（ADR 0028）
     pub send_to_kindle_env_example_path: Option<String>,
+    /// kindlegen の実行ファイル。null なら自動で探す（ADR 0032）
+    pub kindlegen_path: Option<String>,
+    /// striptool の実行ファイル。null なら自動で探す（ADR 0032）
+    pub striptool_path: Option<String>,
     /// 定期取得（ADR 0019）
     pub schedule: ScheduleSettings,
 }
@@ -57,6 +61,8 @@ impl Settings {
         validate_executable("クローラー", self.crawler_path.as_deref())?;
         validate_executable("epub-builder ", self.epub_builder_path.as_deref())?;
         validate_executable("send-to-kindle ", self.send_to_kindle_path.as_deref())?;
+        validate_executable("kindlegen ", self.kindlegen_path.as_deref())?;
+        validate_executable("striptool ", self.striptool_path.as_deref())?;
         validate_env_file(".env", self.send_to_kindle_env_path.as_deref())?;
         validate_env_file(
             ".env.example",
@@ -195,10 +201,12 @@ mod tests {
         let second = Settings {
             crawler_path: Some(crawler.clone()),
             epub_builder_path: Some(crawler.clone()),
-            send_to_kindle_path: Some(crawler),
+            send_to_kindle_path: Some(crawler.clone()),
             // send-to-kindle に -e で渡すため、名前は .env でなくてよい
             send_to_kindle_env_path: Some(env_file(dir.path(), "kindle.env")),
             send_to_kindle_env_example_path: Some(env_file(dir.path(), ".env.example")),
+            kindlegen_path: Some(crawler.clone()),
+            striptool_path: Some(crawler),
             schedule: ScheduleSettings {
                 enabled: false,
                 at: "04:30".into(),
@@ -248,6 +256,14 @@ mod tests {
             },
             Settings {
                 send_to_kindle_path: Some("/nonexistent/send-to-kindle".into()),
+                ..Settings::default()
+            },
+            Settings {
+                kindlegen_path: Some("/nonexistent/kindlegen".into()),
+                ..Settings::default()
+            },
+            Settings {
+                striptool_path: Some("/nonexistent/striptool".into()),
                 ..Settings::default()
             },
             Settings {

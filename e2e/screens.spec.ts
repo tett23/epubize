@@ -362,14 +362,66 @@ test.describe("書き出しと Kindle への送信", () => {
     ]);
   });
 
-  test("mobi のボタンはどこにも出さない", async ({ page }) => {
+  test("download mobi は作品、話の行、話のページから、範囲を渡して書く", async ({ page }) => {
     await installBackend(page);
     await page.goto("/");
     await page.getByRole("link", { name: "合成データの作品" }).click();
-    await expect(page.getByRole("button", { name: /mobi/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "download mobi" }).first().click();
+    await expect(page.getByRole("status").filter({ hasText: "合成データの作品.mobi" })).toBeVisible();
+
+    const fetched = page.getByRole("row").filter({ hasText: "第1話　合成データの話" });
+    await fetched.getByRole("button", { name: "download mobi" }).click();
+    await expect(fetched.getByRole("status")).toContainText(
+      "保存しました: 合成データの作品 第1話　合成データの話.mobi",
+    );
+    // 本文のない話には出さない
+    const unfetched = page.getByRole("row").filter({ hasText: "第2話　合成データの話" });
+    await expect(unfetched.getByRole("button", { name: "download mobi" })).toHaveCount(0);
+
     await page.getByRole("link", { name: "第1話　合成データの話" }).click();
     await expect(page.getByRole("heading", { name: "1: 第1話　合成データの話" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /mobi/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "download mobi" }).click();
+    await expect(page.getByRole("status").filter({ hasText: ".mobi" })).toBeVisible();
+    const scopes = (await calls(page)).filter((c) => c.cmd === "download_mobi").map((c) => c.args.scope);
+    expect(scopes).toEqual([
+      { kind: "novel", id: 1 },
+      { kind: "episode", id: 1 },
+      { kind: "episode", id: 1 },
+    ]);
+  });
+});
+
+test.describe("管理画面の kindlegen と striptool", () => {
+  test("自動で見つかるものを出し、指定して保存すると使用中に出す", async ({ page }) => {
+    await installBackend(page, { ...defaultState(), kindlegenFound: "/usr/local/bin/kindlegen" });
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    await expect(page.getByLabel("kindlegen の実行ファイル")).toHaveAttribute(
+      "placeholder",
+      "/usr/local/bin/kindlegen",
+    );
+    const striptool = page.locator("section").filter({ hasText: "元の EPUB を取り除く" });
+    await expect(striptool.getByText("見つかりません")).toHaveCount(2);
+
+    await page.getByLabel("striptool の実行ファイル").fill("/usr/local/bin/striptool");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByRole("status")).toHaveText("保存しました");
+    await expect(striptool.getByText("/usr/local/bin/striptool")).toBeVisible();
+    const saved = await page.evaluate(
+      () =>
+        (window as unknown as { __epubize: { state: { settings: { striptoolPath: string | null } } } }).__epubize.state
+          .settings.striptoolPath,
+    );
+    expect(saved).toBe("/usr/local/bin/striptool");
+  });
+
+  test("実行できないパスは保存しない", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    await page.getByLabel("kindlegen の実行ファイル").fill("/nonexistent/kindlegen");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByRole("alert")).toContainText("kindlegen の実行ファイルが見つからないか、実行できません");
   });
 });
 

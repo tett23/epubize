@@ -1,4 +1,4 @@
-import { downloadEpub, downloadZip, type ExportScope, revealPath, sendToKindle } from "../data";
+import { downloadEpub, downloadMobi, downloadZip, type ExportScope, revealPath, sendToKindle } from "../data";
 import { ActionButton } from "./ui";
 
 /** 書き出したファイルの名前と、Finder で表示するボタン */
@@ -19,6 +19,15 @@ export function DownloadEpubButton({ scope }: { scope: ExportScope }) {
   return (
     <ActionButton action={() => downloadEpub(scope)} done={(path) => <Saved path={path} />}>
       download epub
+    </ActionButton>
+  );
+}
+
+/** kindlegen と striptool で、端末に直接入れるための MOBI を作り、ダウンロードのディレクトリに書く（ADR 0032） */
+export function DownloadMobiButton({ scope }: { scope: ExportScope }) {
+  return (
+    <ActionButton action={() => downloadMobi(scope)} done={(path) => <Saved path={path} />}>
+      download mobi
     </ActionButton>
   );
 }

@@ -94,6 +94,8 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
   const [crawlerPath, setCrawlerPath] = useState(view.settings.crawlerPath ?? "");
   const [epubBuilderPath, setEpubBuilderPath] = useState(view.settings.epubBuilderPath ?? "");
   const [sendToKindlePath, setSendToKindlePath] = useState(view.settings.sendToKindlePath ?? "");
+  const [kindlegenPath, setKindlegenPath] = useState(view.settings.kindlegenPath ?? "");
+  const [striptoolPath, setStriptoolPath] = useState(view.settings.striptoolPath ?? "");
   const [envPath, setEnvPath] = useState(view.settings.sendToKindleEnvPath ?? "");
   const [envExamplePath, setEnvExamplePath] = useState(view.settings.sendToKindleEnvExamplePath ?? "");
   const [enabled, setEnabled] = useState(view.settings.schedule.enabled);
@@ -105,6 +107,8 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
     setCrawlerPath(view.settings.crawlerPath ?? "");
     setEpubBuilderPath(view.settings.epubBuilderPath ?? "");
     setSendToKindlePath(view.settings.sendToKindlePath ?? "");
+    setKindlegenPath(view.settings.kindlegenPath ?? "");
+    setStriptoolPath(view.settings.striptoolPath ?? "");
     setEnvPath(view.settings.sendToKindleEnvPath ?? "");
     setEnvExamplePath(view.settings.sendToKindleEnvExamplePath ?? "");
     setEnabled(view.settings.schedule.enabled);
@@ -119,6 +123,8 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
         crawlerPath: crawlerPath.trim() === "" ? null : crawlerPath.trim(),
         epubBuilderPath: epubBuilderPath.trim() === "" ? null : epubBuilderPath.trim(),
         sendToKindlePath: sendToKindlePath.trim() === "" ? null : sendToKindlePath.trim(),
+        kindlegenPath: kindlegenPath.trim() === "" ? null : kindlegenPath.trim(),
+        striptoolPath: striptoolPath.trim() === "" ? null : striptoolPath.trim(),
         sendToKindleEnvPath: envPath.trim() === "" ? null : envPath.trim(),
         sendToKindleEnvExamplePath: envExamplePath.trim() === "" ? null : envExamplePath.trim(),
         schedule: { enabled, at },
@@ -190,6 +196,32 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
           があれば、そのキーが .env にあるかを調べます。値は表示しません。
         </p>
         <EnvCheckResult check={view.sendToKindleEnvCheck} />
+      </Section>
+      <Section title="kindlegen">
+        <ExecutableField
+          name="kindlegen "
+          value={kindlegenPath}
+          onChange={setKindlegenPath}
+          inUse={view.kindlegenInUse}
+          found={view.kindlegenFound}
+        />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          download mobi で、EPUB を MOBI にするときに子プロセスとして起動します。Kindle Previewer の
+          Contents/Resources/KFXGen/bin にあります。
+        </p>
+      </Section>
+      <Section title="striptool">
+        <ExecutableField
+          name="striptool "
+          value={striptoolPath}
+          onChange={setStriptoolPath}
+          inUse={view.striptoolInUse}
+          found={view.striptoolFound}
+        />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          download mobi で、kindlegen が MOBI に埋め込んだ元の EPUB
+          を取り除くときに子プロセスとして起動します。kindlegen と同じ場所にあります。
+        </p>
       </Section>
       <Section title="定期取得">
         <label className="flex items-center gap-2">

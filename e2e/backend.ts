@@ -35,12 +35,16 @@ export type BackendState = {
   crawlerFound: string | null;
   epubBuilderFound?: string | null;
   sendToKindleFound?: string | null;
+  kindlegenFound?: string | null;
+  striptoolFound?: string | null;
   /** .env.example にあって .env にないキー。未定義なら .env.example がないとする */
   missingEnvKeys?: string[];
   settings: {
     crawlerPath: string | null;
     epubBuilderPath?: string | null;
     sendToKindlePath?: string | null;
+    kindlegenPath?: string | null;
+    striptoolPath?: string | null;
     sendToKindleEnvPath?: string | null;
     sendToKindleEnvExamplePath?: string | null;
     schedule: { enabled: boolean; at: string };
@@ -162,6 +166,10 @@ export async function installBackend(page: Page, state: BackendState = defaultSt
         epubBuilderFound: state.epubBuilderFound ?? null,
         sendToKindleInUse: state.settings.sendToKindlePath ?? state.sendToKindleFound ?? null,
         sendToKindleFound: state.sendToKindleFound ?? null,
+        kindlegenInUse: state.settings.kindlegenPath ?? state.kindlegenFound ?? null,
+        kindlegenFound: state.kindlegenFound ?? null,
+        striptoolInUse: state.settings.striptoolPath ?? state.striptoolFound ?? null,
+        striptoolFound: state.striptoolFound ?? null,
         sendToKindleEnvDefault: "/tmp/epubize/.env",
         sendToKindleEnvExampleDefault: "/tmp/epubize/.env.example",
         sendToKindleEnvCheck:
@@ -187,6 +195,14 @@ export async function installBackend(page: Page, state: BackendState = defaultSt
         if (next.sendToKindlePath != null && !next.sendToKindlePath.startsWith("/usr/")) {
           fail(`send-to-kindle の実行ファイルが見つからないか、実行できません: ${next.sendToKindlePath}`);
         }
+        for (const [name, path] of [
+          ["kindlegen", next.kindlegenPath],
+          ["striptool", next.striptoolPath],
+        ] as const) {
+          if (path != null && !path.startsWith("/usr/")) {
+            fail(`${name} の実行ファイルが見つからないか、実行できません: ${path}`);
+          }
+        }
         if (next.sendToKindleEnvPath != null && !next.sendToKindleEnvPath.startsWith("/usr/")) {
           fail(`send-to-kindle の .env が見つかりません: ${next.sendToKindleEnvPath}`);
         }
@@ -204,6 +220,7 @@ export async function installBackend(page: Page, state: BackendState = defaultSt
       fetch_novel: () => null,
       refetch_episode: () => null,
       download_epub: ({ scope }) => `/Users/test/Downloads/${exportTitle(scope as Scope)}.epub`,
+      download_mobi: ({ scope }) => `/Users/test/Downloads/${exportTitle(scope as Scope)}.mobi`,
       download_zip: ({ scope }) => `/Users/test/Downloads/${exportTitle(scope as Scope)}.zip`,
       send_to_kindle: ({ scope }) => {
         const sent = exportEpisodes(scope as Scope);

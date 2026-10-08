@@ -1,5 +1,10 @@
 import { useParams } from "react-router";
-import { DownloadEpubButton, DownloadZipButton, SendToKindleButton } from "../components/ExportButtons";
+import {
+  DownloadEpubButton,
+  DownloadMobiButton,
+  DownloadZipButton,
+  SendToKindleButton,
+} from "../components/ExportButtons";
 import { ExternalLink } from "../components/ExternalLink";
 import { episodePath, novelPath } from "../components/links";
 import { NormalizeOptionsForm, useNormalizeOptions } from "../components/NormalizeOptionsForm";
@@ -56,6 +61,7 @@ function Episode({ novel, episode, reload }: { novel: NovelDetail; episode: Epis
           <>
             <DownloadZipButton scope={{ kind: "episode", id: episode.id }} />
             <DownloadEpubButton scope={{ kind: "episode", id: episode.id }} />
+            <DownloadMobiButton scope={{ kind: "episode", id: episode.id }} />
             <SendToKindleButton scope={{ kind: "episode", id: episode.id }} onSent={reload} />
           </>
         )}

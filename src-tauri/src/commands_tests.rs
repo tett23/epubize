@@ -225,6 +225,8 @@ async fn shows_and_saves_settings() {
         send_to_kindle_path: Some(crawler.clone()),
         send_to_kindle_env_path: Some(env.to_string_lossy().into_owned()),
         send_to_kindle_env_example_path: Some(example.to_string_lossy().into_owned()),
+        kindlegen_path: Some(crawler.clone()),
+        striptool_path: Some(crawler.clone()),
         schedule: crate::settings::ScheduleSettings {
             enabled: true,
             at: "05:15".into(),
@@ -244,6 +246,8 @@ async fn shows_and_saves_settings() {
         view.send_to_kindle_in_use.as_deref(),
         Some(crawler.as_str())
     );
+    assert_eq!(view.kindlegen_in_use.as_deref(), Some(crawler.as_str()));
+    assert_eq!(view.striptool_in_use.as_deref(), Some(crawler.as_str()));
     assert_eq!(
         view.send_to_kindle_env_check,
         Some(crate::kindle::EnvCheck::Missing {
@@ -503,4 +507,52 @@ async fn export_commands_need_executables() {
     );
     let detail = novel_detail(novel, app.state()).unwrap().unwrap();
     assert!(detail.episodes[0].sent_at.is_none());
+}
+
+#[tokio::test]
+async fn downloads_stripped_mobi_into_downloads() {
+    let dir = tempfile::tempdir().unwrap();
+    let app = app(dir.path(), false);
+    import_novel(&app);
+    let novel = list_novels(app.state()).unwrap()[0].id;
+    let settings = Settings {
+        epub_builder_path: Some(script(dir.path(), "epub-builder", FAKE_EPUB_BUILDER)),
+        // EPUB の中身に印を付けて、-o の名前で入力の隣に書く
+        kindlegen_path: Some(script(
+            dir.path(),
+            "kindlegen",
+            "in=$1\nwhile [ \"$1\" != -o ]; do shift; done\n{ echo kindlegen; cat \"$in\"; } > \"$(dirname \"$in\")/$2\"\nexit 1",
+        )),
+        // 入力の隣の数字のディレクトリに書く
+        striptool_path: Some(script(
+            dir.path(),
+            "striptool",
+            "out=$(dirname \"$1\")/1902840192\nmkdir -p \"$out\"\n{ echo stripped; cat \"$1\"; } > \"$out/$(basename \"$1\")\"",
+        )),
+        ..Settings::default()
+    };
+    save_settings(settings, app.state(), app.state(), app.state()).unwrap();
+
+    let path = download_mobi(export::Scope::Novel(novel), app.state(), app.state())
+        .await
+        .unwrap();
+    assert_eq!(
+        Path::new(&path),
+        dir.path().join("downloads/合成データの作品.mobi")
+    );
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        "stripped\nkindlegen\n# 第1話\n\n　本文。\n\n---\n\n後書き\n"
+    );
+
+    // striptool が見つからなければ、管理画面での指定を促す
+    std::fs::write(
+        dir.path().join(settings::FILENAME),
+        r#"{"striptoolPath":"/nonexistent/striptool"}"#,
+    )
+    .unwrap();
+    let error = download_mobi(export::Scope::Novel(novel), app.state(), app.state())
+        .await
+        .unwrap_err();
+    assert!(error.contains("striptool"), "{error}");
 }

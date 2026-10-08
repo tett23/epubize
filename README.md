@@ -31,7 +31,7 @@ release ビルドは `production` の環境で動く。データの置き場所�
 
 ### 2. 外部のプログラムを入れる
 
-epubize は次の三つを子プロセスとして起動する。PATH、`~/bin`、`~/.local/bin`、`/opt/homebrew/bin`、`/usr/local/bin` から自動で探す。
+epubize は次のプログラムを子プロセスとして起動する。PATH、`~/bin`、`~/.local/bin`、`/opt/homebrew/bin`、`/usr/local/bin` から自動で探す。
 見つからないときや別のものを使うときは、管理画面(settings)で実行ファイルを指定する。
 
 | プログラム       | 使うところ                                       | 入れ方                                                                                                |
@@ -39,6 +39,11 @@ epubize は次の三つを子プロセスとして起動する。PATH、`~/bin`�
 | `novel-crawler`  | fetch(作品と話の取得)                            | 非公開のため別に用意する                                                                              |
 | `epub-builder`   | download epub、send to Kindle(EPUB 3.0 の生成)   | [tett23/epub-builder](https://github.com/tett23/epub-builder) を clone して `deno task install`       |
 | `send-to-kindle` | send to Kindle(メールでの送信)                   | [tett23/dotfiles](https://github.com/tett23/dotfiles) の `bin/send-to-kindle` を `~/bin` などに置く(シンボリックリンクでよい) |
+| `kindlegen`      | download mobi(EPUB から MOBI への変換)           | Kindle Previewer の `Contents/Resources/KFXGen/bin/kindlegen` を `~/bin` などにコピーする               |
+| `striptool`      | download mobi(MOBI に埋め込まれた元の EPUB の除去) | 同じ場所の `striptool` を `~/bin` などにコピーする                                                    |
+
+kindlegen と striptool は x86_64 の実行ファイルのため、Apple Silicon では Rosetta が要る([ADR 0032](docs/adr/0032-download-mobi-with-kindlegen-and-striptool.md))。
+Send to Kindle のメールは MOBI を受け付けないため、send to Kindle は EPUB を送り、MOBI は端末に USB などで入れる。
 
 epub-builder と send-to-kindle は Deno で動く。Finder から起動したアプリはシェルの PATH を引き継がないため、
 epubize は子プロセスの PATH に [mise](https://mise.jdx.dev/) の shim(`~/.local/share/mise/shims`)を足す。
@@ -71,7 +76,7 @@ fetch all で、購読している作品の目次と本文を取得する。管�
 
 ### 5. 確かめる
 
-管理画面(settings)で、三つのプログラムの「使用中」にパスが出ていること、`.env` に足りないキーがないことを確かめる。
+管理画面(settings)で、各プログラムの「使用中」にパスが出ていること、`.env` に足りないキーがないことを確かめる。
 作品のページの download epub で `~/Downloads` に EPUB ができれば、epub-builder まで動いている。
 話を一つ選んで send to Kindle を押し、Kindle に届けば準備は終わり。
 

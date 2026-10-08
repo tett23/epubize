@@ -63,6 +63,8 @@ describe("コマンドの引数", () => {
       sendToKindlePath: null,
       sendToKindleEnvPath: null,
       sendToKindleEnvExamplePath: null,
+      kindlegenPath: null,
+      striptoolPath: null,
       schedule: { enabled: true, at: "03:00" },
     };
     await saveSettings(settings);

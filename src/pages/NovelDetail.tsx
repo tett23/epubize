@@ -1,6 +1,11 @@
 import { Fragment } from "react";
 import { useParams } from "react-router";
-import { DownloadEpubButton, DownloadZipButton, SendToKindleButton } from "../components/ExportButtons";
+import {
+  DownloadEpubButton,
+  DownloadMobiButton,
+  DownloadZipButton,
+  SendToKindleButton,
+} from "../components/ExportButtons";
 import { ExternalLink } from "../components/ExternalLink";
 import { AuthorLink, EpisodeTitle } from "../components/links";
 import { NormalizeOptionsForm, useNormalizeOptions } from "../components/NormalizeOptionsForm";
@@ -59,6 +64,7 @@ function Novel({ novel, reload }: { novel: NovelDetailData; reload: () => void }
         </ActionButton>
         <DownloadZipButton scope={{ kind: "novel", id: novel.id }} />
         <DownloadEpubButton scope={{ kind: "novel", id: novel.id }} />
+        <DownloadMobiButton scope={{ kind: "novel", id: novel.id }} />
         <SendToKindleButton
           scope={{ kind: "novel", id: novel.id }}
           confirm={`本文を取得済みの ${fetchedCount(novel)} 話を 1 冊にして Kindle に送ります。よろしいですか？`}
@@ -107,6 +113,7 @@ function Episodes({ novel, reload }: { novel: NovelDetailData; reload: () => voi
                   {episode.bodyFetchedAt && (
                     <ButtonGroup>
                       <DownloadEpubButton scope={{ kind: "episode", id: episode.id }} />
+                      <DownloadMobiButton scope={{ kind: "episode", id: episode.id }} />
                       <SendToKindleButton scope={{ kind: "episode", id: episode.id }} onSent={reload} />
                     </ButtonGroup>
                   )}

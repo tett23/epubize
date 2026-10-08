@@ -6,6 +6,7 @@ pub mod export;
 pub mod fetch;
 pub mod kindle;
 pub mod library;
+pub mod mobi;
 pub mod pipeline;
 pub mod schedule;
 pub mod settings;
@@ -42,6 +43,7 @@ pub fn run() {
             commands::set_normalize_options,
             commands::download_epub,
             commands::download_zip,
+            commands::download_mobi,
             commands::send_to_kindle,
             commands::reveal_path,
         ])
