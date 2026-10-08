@@ -29,6 +29,16 @@ pnpm install
 pnpm tauri dev
 ```
 
+データは SQLite に持ち、起動時に未適用のマイグレーションを自動で適用する([ADR 0013](docs/adr/0013-sqlite-migrations.md))。
+マイグレーションは `src-tauri/migrations/` に置き、[mise](https://mise.jdx.dev/) のタスクから操作できる。
+
+```bash
+mise run db:new create_novels  # 次の版の空のマイグレーションを作る
+mise run db:migrate            # 未適用のマイグレーションを適用する
+mise run db:status             # 適用済みの版と未適用のマイグレーションを表示する
+mise run db:reset              # データベースを消して全てのマイグレーションを流し直す
+```
+
 ## ライセンス
 
 [MIT](LICENSE)

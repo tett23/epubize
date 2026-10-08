@@ -1,0 +1,17 @@
+# タスクランナー（ADR 0013）。`mise tasks` で一覧、`mise run <task>` で実行する
+
+[tasks."db:migrate"]
+description = "未適用のマイグレーションを適用する"
+run = "cargo run --quiet --manifest-path src-tauri/Cargo.toml --bin migrate -- up"
+
+[tasks."db:status"]
+description = "適用済みの版と、未適用のマイグレーションを表示する"
+run = "cargo run --quiet --manifest-path src-tauri/Cargo.toml --bin migrate -- status"
+
+[tasks."db:new"]
+description = "次の版の空のマイグレーションを作る（例: mise run db:new create_novels）"
+run = "cargo run --quiet --manifest-path src-tauri/Cargo.toml --bin migrate -- new"
+
+[tasks."db:reset"]
+description = "データベースのファイルを消し、全てのマイグレーションを流し直す"
+run = "cargo run --quiet --manifest-path src-tauri/Cargo.toml --bin migrate -- reset"

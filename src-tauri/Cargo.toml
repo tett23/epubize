@@ -5,6 +5,7 @@ description = "Web 小説を EPUB にするツールと管理 GUI"
 authors = ["tett23"]
 license = "MIT"
 edition = "2024"
+default-run = "epubize"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -23,6 +24,8 @@ tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-opener = "2"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+dirs = "7.0.0"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
@@ -32,3 +35,6 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[dev-dependencies]
+tempfile = "3.27.0"

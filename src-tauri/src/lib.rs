@@ -1,3 +1,4 @@
+pub mod db;
 mod window_state;
 
 use tauri::{Manager, RunEvent};
@@ -8,6 +9,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(window_state::WindowStateStore::default())
         .setup(|app| {
+            // ファイルがなければ作り、未適用のマイグレーションを全て流す（ADR 0013）
+            let path = db::default_path().ok_or("cannot determine the database path")?;
+            let conn = db::open(&path)?;
+            app.manage(db::Database(std::sync::Mutex::new(conn)));
+
             let window = app
                 .get_webview_window("main")
                 .expect("main window is defined in tauri.conf.json");
