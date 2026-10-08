@@ -3,6 +3,7 @@
 pub mod crawler;
 pub mod queue;
 
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -69,13 +70,27 @@ impl Fetcher {
         Ok(())
     }
 
-    /// 全てのキューを破棄してから積み直す。続けて呼んでも同じタスクが重複しない
+    /// 全てのキューを破棄してから積み直す。続けて呼んでも同じタスクが重複しない。
+    ///
+    /// 破棄すると、実行中の取得の後ろにあった待ちも消える。積み直した取得が実行中の取得の直後に
+    /// 送られないよう、各ドメインの先頭に間隔の分の待ちを置く（ADR 0016）
     pub fn fetch_all(&self, requests: Vec<Request>) -> Vec<String> {
         self.inner.queues.clear();
-        requests
-            .into_iter()
-            .filter_map(|request| self.enqueue(request).err())
-            .collect()
+        let mut errors = Vec::new();
+        let mut started = HashSet::new();
+        for request in requests {
+            let Some(domain) = request.domain() else {
+                errors.push(format!("cannot determine the domain of {}", request.url));
+                continue;
+            };
+            if started.insert(domain.clone()) {
+                self.inner.queues.push_back(&domain, vec![wait(INTERVAL)]);
+            }
+            self.inner
+                .queues
+                .push_back(&domain, self.fetch_pair(request, 0));
+        }
+        errors
     }
 
     fn fetch_pair(&self, request: Request, retries: u32) -> Vec<Task> {
@@ -137,6 +152,8 @@ mod tests {
     struct FakeCrawler {
         results: Mutex<VecDeque<Result<String, CrawlError>>>,
         log: Log,
+        /// 1 回の取得にかかる秒数
+        secs: u64,
     }
 
     impl Crawler for FakeCrawler {
@@ -148,7 +165,11 @@ mod tests {
                 .unwrap()
                 .pop_front()
                 .unwrap_or(Ok(String::new()));
-            Box::pin(async move { result })
+            let secs = self.secs;
+            Box::pin(async move {
+                tokio::time::sleep(Duration::from_secs(secs)).await;
+                result
+            })
         }
     }
 
@@ -169,9 +190,19 @@ mod tests {
 
     /// 偽のクローラーと、終わった取得の記録を持つ Fetcher
     fn fetcher(results: Vec<Result<String, CrawlError>>, log: &Log, now: DateTime<Utc>) -> Fetcher {
+        slow_fetcher(results, log, now, 0)
+    }
+
+    fn slow_fetcher(
+        results: Vec<Result<String, CrawlError>>,
+        log: &Log,
+        now: DateTime<Utc>,
+        secs: u64,
+    ) -> Fetcher {
         let crawler = Arc::new(FakeCrawler {
             results: Mutex::new(results.into()),
             log: log.clone(),
+            secs,
         });
         let done_log = log.clone();
         let on_done: OnDone = Arc::new(move |request, result| {
@@ -366,10 +397,32 @@ mod tests {
         assert_eq!(
             crawls,
             [
-                format!("0s crawl {A1}"),
-                "0s crawl https://b.example/1".to_owned(),
-                format!("5s crawl {A2}"),
+                format!("10s crawl {A2}"),
+                format!("5s crawl {A1}"),
+                "5s crawl https://b.example/1".to_owned(),
             ]
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn fetch_all_keeps_interval_after_running_fetch() {
+        let log = Log::new();
+        // 1 回の取得に 2 秒かかる。最初の取得は 5 秒から 7 秒まで
+        let fetcher = slow_fetcher(vec![], &log, now(), 2);
+        fetcher.fetch_all(vec![request(A1)]);
+        // 取得の最中に押し直す。破棄で消えた待ちの代わりに、先頭の待ちで間隔が空く
+        settle(6).await;
+        fetcher.fetch_all(vec![request(A1)]);
+        settle(30).await;
+
+        let crawls: Vec<String> = log
+            .events()
+            .into_iter()
+            .filter(|e| e.contains("crawl"))
+            .collect();
+        assert_eq!(
+            crawls,
+            [format!("5s crawl {A1}"), format!("12s crawl {A1}")]
         );
     }
 
