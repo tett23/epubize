@@ -1,9 +1,7 @@
-import "./App.css";
-
 function App() {
   return (
-    <main className="container">
-      <h1>epubize</h1>
+    <main className="p-8">
+      <h1 className="text-2xl font-bold">epubize</h1>
     </main>
   );
 }
