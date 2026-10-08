@@ -26,6 +26,9 @@ serde_json = { version = "1", features = ["preserve_order"] }
 tauri-plugin-opener = "2"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 dirs = "7.0.0"
+tokio = { version = "1", features = ["rt", "sync", "time", "process", "macros"] }
+url = "2"
+chrono = { version = "0.4.45", default-features = false, features = ["std", "now"] }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
@@ -38,3 +41,4 @@ strip = true
 
 [dev-dependencies]
 tempfile = "3.27.0"
+tokio = { version = "1", features = ["test-util", "rt-multi-thread"] }
