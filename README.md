@@ -11,6 +11,70 @@ EPUB を生成し、作品を管理する部分を受け持つ。GUI は Tauri �
 
 設計上の決定とその理由は [docs/adr/](docs/adr/) に記録している。
 
+## 使う準備
+
+macOS で、作品の取得から EPUB の書き出し、Kindle への送信までを使うための手順。
+
+### 1. epubize を入れる
+
+Node.js、pnpm、Rust を入れてから、release ビルドを作り、`/Applications` に置く。
+
+```bash
+pnpm install
+pnpm tauri build --bundles app
+cp -R src-tauri/target/release/bundle/macos/epubize.app /Applications/
+```
+
+GitHub の Release にある `.dmg` を使ってもよい。署名していないため、初回は開けないと言われる。システム設定の「プライバシーとセキュリティ」で、epubize を開くことを許可する。
+
+release ビルドは `production` の環境で動く。データの置き場所は下の「開発」の節にある。
+
+### 2. 外部のプログラムを入れる
+
+epubize は次の三つを子プロセスとして起動する。PATH、`~/bin`、`~/.local/bin`、`/opt/homebrew/bin`、`/usr/local/bin` から自動で探す。
+見つからないときや別のものを使うときは、管理画面(settings)で実行ファイルを指定する。
+
+| プログラム       | 使うところ                                       | 入れ方                                                                                                |
+| ---------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `novel-crawler`  | fetch(作品と話の取得)                            | 非公開のため別に用意する                                                                              |
+| `epub-builder`   | download epub、send to Kindle(EPUB 3.0 の生成)   | [tett23/epub-builder](https://github.com/tett23/epub-builder) を clone して `deno task install`       |
+| `send-to-kindle` | send to Kindle(メールでの送信)                   | [tett23/dotfiles](https://github.com/tett23/dotfiles) の `bin/send-to-kindle` を `~/bin` などに置く(シンボリックリンクでよい) |
+
+epub-builder と send-to-kindle は Deno で動く。Finder から起動したアプリはシェルの PATH を引き継がないため、
+epubize は子プロセスの PATH に [mise](https://mise.jdx.dev/) の shim(`~/.local/share/mise/shims`)を足す。
+Deno は mise で入れておく(`mise use -g deno`)。
+
+### 3. Kindle への送信を設定する
+
+send-to-kindle は SMTP でメールを送る。このリポジトリの [.env.example](.env.example) を、アプリ用データ領域に `.env` として写し、値を書き込む。
+`.env.example` も同じ場所に置くと、`.env` に足りないキーを管理画面に出す([ADR 0028](docs/adr/0028-send-to-kindle-env-files.md))。
+
+```bash
+dir="$HOME/Library/Application Support/com.github.tett23.epubize/production"
+mkdir -p "$dir"
+cp .env.example "$dir/.env.example"
+cp .env.example "$dir/.env"
+chmod 600 "$dir/.env"
+```
+
+- `EMAIL`(送信元のメールアドレス)を、Amazon の「コンテンツと端末の管理」の「承認済み E メールアドレス一覧」に加える
+- `SEND_TO_KINDLE_EMAIL` には、同じページの端末の欄にある `@kindle.com` のアドレスを書く
+- Gmail で送るときは、`SMTP_HOST=smtp.gmail.com`、`SMTP_PORT=587`、`SMTP_USER_NAME` に Gmail のアドレス、
+  `SMTP_PASSWORD` に Google アカウントの「アプリ パスワード」を書く
+
+`.env` の場所は、管理画面で変えられる。
+
+### 4. 作品を購読する
+
+画面の上の欄に作品の URL を入れて add を押すか、`~/.config/epubize/production/novels.json` に書く(kindlize と同じ形)。
+fetch all で、購読している作品の目次と本文を取得する。管理画面で、毎日決まった時刻に fetch all を行うように設定できる。
+
+### 5. 確かめる
+
+管理画面(settings)で、三つのプログラムの「使用中」にパスが出ていること、`.env` に足りないキーがないことを確かめる。
+作品のページの download epub で `~/Downloads` に EPUB ができれば、epub-builder まで動いている。
+話を一つ選んで send to Kindle を押し、Kindle に届けば準備は終わり。
+
 ## 開発
 
 clone した後に一度、コミット済み ADR の変更を拒否する git の hook を有効にする(要 Deno)。
