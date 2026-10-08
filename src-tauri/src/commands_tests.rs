@@ -531,7 +531,7 @@ async fn downloads_stripped_mobi_into_downloads() {
         )),
         ..Settings::default()
     };
-    save_settings(settings, app.state(), app.state(), app.state()).unwrap();
+    save_settings(settings.clone(), app.state(), app.state(), app.state()).unwrap();
 
     let path = download_mobi(export::Scope::Novel(novel), app.state(), app.state())
         .await
@@ -545,14 +545,18 @@ async fn downloads_stripped_mobi_into_downloads() {
         "stripped\nkindlegen\n# 第1話\n\n　本文。\n\n---\n\n後書き\n"
     );
 
-    // striptool が見つからなければ、管理画面での指定を促す
+    // striptool がなければ、その誤りを返す。ほかの指定は残し、自動で探したものを使わせない
+    let missing = Settings {
+        striptool_path: Some("/nonexistent/striptool".into()),
+        ..settings
+    };
     std::fs::write(
         dir.path().join(settings::FILENAME),
-        r#"{"striptoolPath":"/nonexistent/striptool"}"#,
+        serde_json::to_string(&missing).unwrap(),
     )
     .unwrap();
     let error = download_mobi(export::Scope::Novel(novel), app.state(), app.state())
         .await
         .unwrap_err();
-    assert!(error.contains("striptool"), "{error}");
+    assert!(error.starts_with("striptool を起動できません"), "{error}");
 }
