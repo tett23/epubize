@@ -317,6 +317,53 @@ mod tests {
         assert_eq!(settings::load(&path).unwrap(), settings);
     }
 
+    fn paths(dir: &std::path::Path) -> Paths {
+        Paths {
+            env: Environment::Development,
+            subscriptions: dir.join(subscriptions::FILENAME),
+            settings: dir.join(settings::FILENAME),
+            database: dir.join("epubize.sqlite3"),
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn requeue_all_queues_tables_of_contents_for_every_subscription() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        for url in [
+            "https://ncode.syosetu.com/n0001aa/",
+            "https://syosetu.org/novel/100001/",
+        ] {
+            subscriptions::add(&paths.subscriptions, Subscription::from_url(url).unwrap()).unwrap();
+        }
+        let fetcher = fetcher();
+
+        assert_eq!(requeue_all(&paths, &fetcher, true).unwrap(), 2);
+        // ドメインごとに、先頭の待ち、目次の取得、その後の待ち（ADR 0016）
+        assert_eq!(fetcher.queues().len(), 6);
+
+        // 押し直すと積み直し、重複しない
+        assert_eq!(requeue_all(&paths, &fetcher, false).unwrap(), 2);
+        assert_eq!(fetcher.queues().len(), 6);
+    }
+
+    #[tokio::test]
+    async fn requeue_all_reports_broken_subscriptions() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        std::fs::write(&paths.subscriptions, "{ not json").unwrap();
+        assert!(requeue_all(&paths, &fetcher(), true).is_err());
+    }
+
+    #[tokio::test]
+    async fn requeue_all_with_no_subscriptions_queues_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = paths(dir.path());
+        let fetcher = fetcher();
+        assert_eq!(requeue_all(&paths, &fetcher, true).unwrap(), 0);
+        assert!(fetcher.queues().is_empty());
+    }
+
     #[tokio::test]
     async fn changes_nothing_when_settings_are_invalid() {
         let dir = tempfile::tempdir().unwrap();
