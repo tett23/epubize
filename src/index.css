@@ -3,3 +3,26 @@
 :root {
   color-scheme: light dark;
 }
+
+/* 本文のプレビュー。Tailwind の初期化で消える見出しと区切り線の見た目を戻す */
+@layer components {
+  .novel-body h2 {
+    font-size: 1.25em;
+    font-weight: bold;
+    margin-block-end: 1em;
+  }
+
+  /* 縦書きでも行に沿う線になるよう、論理方向で指定する */
+  .novel-body hr {
+    height: auto;
+    block-size: 0;
+    border: 0;
+    border-block-start: 1px solid currentColor;
+    opacity: 0.3;
+    margin-block: 1em;
+  }
+
+  .novel-body rt {
+    font-size: 0.5em;
+  }
+}
