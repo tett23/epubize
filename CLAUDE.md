@@ -17,3 +17,8 @@ Web 小説を EPUB にするツールと管理 GUI。公開リポジトリ（MIT
 
 - 公開リポジトリなので、Web 小説の本文などの著作物をコミットしない。テストのフィクスチャは合成したデータで作る
 - 取得（クロール）は非公開のリポジトリが担う。取得の実装や非公開側の内部情報をここに持ち込まない
+
+## ADR の保護
+
+- コミット済み ADR の変更不可は hook で強制されている（ADR 0002）。Claude Code の hook（`.claude/settings.json`）が Edit / Write を止め、Bash の後に違反を差し戻す。git の pre-commit（`.githooks/pre-commit`）がコミットを拒否する。hook を迂回しない（`--no-verify` を使わない）
+- hook の判定は `scripts/adr-guard.ts`（Deno）。テストは `deno test --no-config --no-lock test/`

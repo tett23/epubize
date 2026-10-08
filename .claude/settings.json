@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "deno run -q --no-config --allow-read --allow-run=git --allow-env=CLAUDE_PROJECT_DIR \"$CLAUDE_PROJECT_DIR/scripts/adr-guard.ts\" claude-pre-tool-use",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "deno run -q --no-config --allow-read --allow-run=git --allow-env=CLAUDE_PROJECT_DIR \"$CLAUDE_PROJECT_DIR/scripts/adr-guard.ts\" claude-post-bash",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
