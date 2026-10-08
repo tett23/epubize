@@ -182,10 +182,7 @@ mod tests {
     }
 
     fn request(url: &str) -> Request {
-        Request {
-            command: Command::Episode,
-            url: url.into(),
-        }
+        Request::new(Command::Episode, url, false)
     }
 
     /// 偽のクローラーと、終わった取得の記録を持つ Fetcher

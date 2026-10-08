@@ -33,9 +33,19 @@ impl Command {
 pub struct Request {
     pub command: Command,
     pub url: String,
+    /// 取得の後に、続く取得（目次なら話、話なら挿絵）を積むか（ADR 0018）。クローラーには渡さない
+    pub follow_up: bool,
 }
 
 impl Request {
+    pub fn new(command: Command, url: impl Into<String>, follow_up: bool) -> Self {
+        Self {
+            command,
+            url: url.into(),
+            follow_up,
+        }
+    }
+
     /// キューを分ける単位。いまは URL のホスト名とする（ADR 0015）
     pub fn domain(&self) -> Option<String> {
         url::Url::parse(&self.url)
@@ -96,6 +106,43 @@ pub trait Crawler: Send + Sync + 'static {
     fn crawl(&self, request: &Request) -> CrawlFuture;
 }
 
+/// PATH から探すクローラーの実行ファイルの名前
+pub const CRAWLER_NAME: &str = "novel-crawler";
+
+/// Finder から起動したアプリはシェルの PATH を引き継がないため、PATH の後に探す場所
+fn fallback_dirs() -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    if let Some(home) = dirs::home_dir() {
+        dirs.push(home.join("bin"));
+        dirs.push(home.join(".local/bin"));
+    }
+    dirs.push(PathBuf::from("/opt/homebrew/bin"));
+    dirs.push(PathBuf::from("/usr/local/bin"));
+    dirs
+}
+
+/// `dirs` の順に、`name` という実行できるファイルを探す
+fn find_program(name: &str, dirs: impl IntoIterator<Item = PathBuf>) -> Option<PathBuf> {
+    dirs.into_iter()
+        .map(|dir| dir.join(name))
+        .find(|path| is_executable(path))
+}
+
+fn is_executable(path: &std::path::Path) -> bool {
+    let Ok(metadata) = std::fs::metadata(path) else {
+        return false;
+    };
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        metadata.is_file() && metadata.permissions().mode() & 0o111 != 0
+    }
+    #[cfg(not(unix))]
+    {
+        metadata.is_file()
+    }
+}
+
 /// 子プロセスとして起動するクローラー
 pub struct ProcessCrawler {
     program: PathBuf,
@@ -108,11 +155,21 @@ impl ProcessCrawler {
         }
     }
 
-    /// 環境変数 `EPUBIZE_CRAWLER` で指定した実行ファイル。設定画面ができるまでの仮の指定方法
-    pub fn from_env() -> Option<Self> {
-        std::env::var_os("EPUBIZE_CRAWLER")
-            .filter(|v| !v.is_empty())
-            .map(Self::new)
+    /// クローラーの実行ファイルを探す（ADR 0018）。設定画面ができるまでの仮の方法とする。
+    /// 環境変数 `EPUBIZE_CRAWLER` があればそれを、なければ PATH から、
+    /// それでもなければよく使う場所から `novel-crawler` を探す
+    pub fn find() -> Option<Self> {
+        if let Some(path) = std::env::var_os("EPUBIZE_CRAWLER").filter(|v| !v.is_empty()) {
+            return Some(Self::new(path));
+        }
+        let path_dirs = std::env::var_os("PATH")
+            .map(|paths| std::env::split_paths(&paths).collect::<Vec<_>>())
+            .unwrap_or_default();
+        find_program(CRAWLER_NAME, path_dirs.into_iter().chain(fallback_dirs())).map(Self::new)
+    }
+
+    pub fn program(&self) -> &std::path::Path {
+        &self.program
     }
 }
 
@@ -181,11 +238,13 @@ mod tests {
         let request = Request {
             command: Command::Toc,
             url: "https://example.com/novels/1/".into(),
+            follow_up: false,
         };
         assert_eq!(request.domain().as_deref(), Some("example.com"));
         let invalid = Request {
             command: Command::Toc,
             url: "not a url".into(),
+            follow_up: false,
         };
         assert_eq!(invalid.domain(), None);
     }
@@ -245,6 +304,7 @@ mod tests {
             .crawl(&Request {
                 command: Command::Toc,
                 url: "https://example.com/".into(),
+                follow_up: false,
             })
             .await;
         assert_eq!(ok.unwrap(), "ok https://example.com/\n");
@@ -253,10 +313,39 @@ mod tests {
             .crawl(&Request {
                 command: Command::Episode,
                 url: "https://example.com/1".into(),
+                follow_up: false,
             })
             .await
             .unwrap_err();
         assert_eq!(err.kind, ErrorKind::NotFound);
+    }
+
+    #[test]
+    fn finds_executable_in_order() {
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+        let program = second.path().join(CRAWLER_NAME);
+        std::fs::write(&program, "#!/bin/sh\n").unwrap();
+        // 実行できないファイルは飛ばす
+        let not_executable = first.path().join(CRAWLER_NAME);
+        std::fs::write(&not_executable, "").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
+            std::fs::set_permissions(&not_executable, std::fs::Permissions::from_mode(0o644))
+                .unwrap();
+        }
+        let dirs = vec![
+            PathBuf::from("/nonexistent"),
+            first.path().to_owned(),
+            second.path().to_owned(),
+        ];
+        assert_eq!(find_program(CRAWLER_NAME, dirs), Some(program));
+        assert_eq!(
+            find_program("no-such-program", vec![second.path().to_owned()]),
+            None
+        );
     }
 
     #[tokio::test]
@@ -266,6 +355,7 @@ mod tests {
             .crawl(&Request {
                 command: Command::Toc,
                 url: "https://example.com/".into(),
+                follow_up: false,
             })
             .await
             .unwrap_err();
