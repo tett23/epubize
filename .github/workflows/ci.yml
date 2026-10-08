@@ -36,6 +36,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # tsc による型検査と Vite のビルド
       - run: pnpm build
+      - run: pnpm test
 
   tauri:
     name: Tauri
