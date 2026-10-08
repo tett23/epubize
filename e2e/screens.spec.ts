@@ -176,3 +176,22 @@ test.describe("管理画面の定期取得", () => {
     await expect(page.getByText("/usr/local/bin/novel-crawler").first()).toBeVisible();
   });
 });
+
+test("外部のリンクは、アプリの中では開かず既定のブラウザで開く", async ({ page }) => {
+  await installBackend(page);
+  await page.goto("/");
+  await page.getByRole("link", { name: "narou-n0001aa" }).first().click();
+  await expect
+    .poll(
+      async () =>
+        (
+          await page.evaluate(
+            () =>
+              (window as unknown as { __epubize: { calls: { cmd: string; args: Record<string, unknown> }[] } })
+                .__epubize.calls,
+          )
+        ).find((c) => c.cmd === "plugin:opener|open_url")?.args,
+    )
+    .toMatchObject({ url: "https://ncode.syosetu.com/n0001aa/" });
+  await expect(page).toHaveURL("http://localhost:1420/");
+});
