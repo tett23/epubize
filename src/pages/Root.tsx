@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ExternalLink } from "../components/ExternalLink";
+import { FetchPanel } from "../components/FetchPanel";
 import { AuthorLink, NovelSiteLink, novelPath } from "../components/links";
-import { Button, ButtonGroup, InternalLink, PartsCount, PendingButton } from "../components/ui";
+import { Button, InternalLink, PartsCount, PendingButton } from "../components/ui";
 import { addSubscription, listNovels, listUnadded } from "../data";
 import { formatDateTime } from "../lib/format";
 import { libraryStats, sortNovels } from "../lib/library";
@@ -14,10 +15,7 @@ export function Root() {
   return (
     <div className="space-y-6">
       <AddNovelForm onAdded={unadded.reload} />
-      <ButtonGroup>
-        <PendingButton>fetch all</PendingButton>
-        <PendingButton>fetch all metadata</PendingButton>
-      </ButtonGroup>
+      <FetchPanel />
       <Stats novels={novels} />
       <Novels novels={novels} />
       <Unadded {...unadded} />

@@ -16,16 +16,19 @@ export function Button({
   type = "button",
   disabled = false,
   title,
+  onClick,
   children,
 }: {
   type?: "button" | "submit";
   disabled?: boolean;
   title?: string;
+  onClick?: () => void;
   children: ReactNode;
 }) {
   return (
     <button
       type={type}
+      onClick={onClick}
       disabled={disabled}
       title={title}
       className="rounded border border-neutral-300 bg-neutral-50 px-2.5 py-1 text-sm text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
