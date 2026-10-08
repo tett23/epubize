@@ -38,6 +38,10 @@ export type BackendState = {
   novels: (Novel & { description: string; episodes: Episode[] })[];
   bodies: Record<number, { body: string; images: Record<string, string> }>;
   queued: number;
+  /** コマンドの名前から、そのコマンドが失敗したときの理由へ */
+  failures?: Record<string, string>;
+  /** 設定のファイルを読めなかったときの理由 */
+  settingsLoadError?: string | null;
 };
 
 export function defaultState(): BackendState {
@@ -126,7 +130,7 @@ export async function installBackend(page: Page, state: BackendState = defaultSt
       },
       get_settings: () => ({
         settings: state.settings,
-        loadError: null,
+        loadError: state.settingsLoadError ?? null,
         crawlerInUse: state.settings.crawlerPath ?? state.crawlerFound,
         crawlerFound: state.crawlerFound,
         environment: "development",
@@ -231,6 +235,8 @@ export async function installBackend(page: Page, state: BackendState = defaultSt
       },
       async invoke(cmd: string, args: Record<string, unknown> = {}) {
         calls.push({ cmd, args });
+        const failure = state.failures?.[cmd];
+        if (failure != null) throw failure;
         const command = commands[cmd];
         if (!command) throw `unknown command: ${cmd}`;
         return command(args);
