@@ -50,6 +50,8 @@ fn episode_id(conn: &Connection, no: i64) -> i64 {
 fn episode(id: i64, title: &str, chapter: Option<&str>, body: &str) -> Episode {
     Episode {
         id,
+        no: id,
+        url: format!("https://ncode.syosetu.com/n0001aa/{id}/"),
         title: title.into(),
         chapter: chapter.map(Into::into),
         preface: None,
@@ -64,6 +66,9 @@ fn book(episodes: Vec<Episode>) -> Book {
         title: "合成データの作品".into(),
         author: "見本 太郎".into(),
         description: "あらすじ".into(),
+        site: "narou".into(),
+        url: "https://ncode.syosetu.com/n0001aa/".into(),
+        created_on: "2026-10-09".into(),
         vertical: true,
         remove_empty_line: true,
         episodes,
@@ -94,6 +99,10 @@ fn loads_fetched_episodes_of_a_novel() {
     assert_eq!(book.identifier, "epubize:narou:n0001aa");
     assert_eq!(book.title, "合成データの作品");
     assert_eq!(book.author, "見本 太郎");
+    assert_eq!(book.site, "narou");
+    assert_eq!(book.url, "https://ncode.syosetu.com/n0001aa/");
+    assert_eq!(book.created_on.len(), "2026-10-09".len());
+    assert_eq!(book.episodes[0].no, 1);
     assert!(book.vertical);
     assert!(book.remove_empty_line);
     // 本文のない 2 話目は入れない
@@ -115,6 +124,8 @@ fn loads_one_episode_without_chapter() {
     let book = load(&conn, Scope::Episode(episode_id(&conn, 1))).unwrap();
     assert_eq!(book.identifier, "epubize:narou:n0001aa:1");
     assert_eq!(book.title, "合成データの作品 第1話");
+    // 話だけの本は、話の URL を奥付に書く
+    assert_eq!(book.url, "https://ncode.syosetu.com/n0001aa/1/");
     assert_eq!(book.episodes.len(), 1);
     assert_eq!(book.episodes[0].chapter, None);
 }
@@ -237,12 +248,122 @@ fn groups_consecutive_episodes_of_the_same_chapter_into_directories() {
 }
 
 #[test]
+fn writes_titlepage_and_colophon() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut novel = book(vec![
+        episode(3, "第3話", None, "三"),
+        episode(5, "第5話", None, "五"),
+    ]);
+    novel.title = "<題名> & \"引用\"".into();
+    write_project(dir.path(), &novel).unwrap();
+    assert_eq!(
+        read(dir.path().join("meta/titlepage.xhtml")),
+        "<div class=\"titlepage\">\n\
+         <h1>&lt;題名&gt; &amp; &quot;引用&quot;</h1>\n\
+         <p class=\"author\">見本 太郎</p>\n\
+         </div>\n"
+    );
+    assert_eq!(
+        read(dir.path().join("meta/colophon.xhtml")),
+        "<h1>奥付</h1>\n<dl class=\"colophon\">\n\
+         <dt>題名</dt>\n<dd>&lt;題名&gt; &amp; &quot;引用&quot;</dd>\n\
+         <dt>著者</dt>\n<dd>見本 太郎</dd>\n\
+         <dt>掲載</dt>\n<dd>小説家になろう<br/><a href=\"https://ncode.syosetu.com/n0001aa/\">https://ncode.syosetu.com/n0001aa/</a></dd>\n\
+         <dt>収録</dt>\n<dd>第3話〜第5話のうち本文を取得した 2 話</dd>\n\
+         <dt>作成</dt>\n<dd>2026-10-09 epubize</dd>\n\
+         </dl>\n"
+    );
+    let css = read(dir.path().join("assets/style.css"));
+    assert!(css.contains(".titlepage"));
+    assert!(css.contains("ol.contents"));
+    assert!(css.contains("dl.colophon"));
+
+    // 一話だけの本と、著者のない本
+    let dir = tempfile::tempdir().unwrap();
+    let mut single = book(vec![episode(7, "第7話", None, "七")]);
+    single.author = String::new();
+    single.site = "kakuyomu".into();
+    write_project(dir.path(), &single).unwrap();
+    assert!(!read(dir.path().join("meta/titlepage.xhtml")).contains("author"));
+    let colophon = read(dir.path().join("meta/colophon.xhtml"));
+    assert!(!colophon.contains("著者"));
+    assert!(colophon.contains("<dd>カクヨム<br/>"));
+    assert!(colophon.contains("<dd>第7話</dd>"));
+}
+
+#[test]
+fn puts_a_title_page_in_each_chapter() {
+    let dir = tempfile::tempdir().unwrap();
+    let novel = book(vec![
+        episode(1, "プロローグ", None, "一"),
+        episode(2, "第1話", Some("第一章 <出会い>"), "二"),
+        episode(3, "第2話", Some("第一章 <出会い>"), "三"),
+        episode(4, "第3話", Some("第二章"), "四"),
+    ]);
+    write_project(dir.path(), &novel).unwrap();
+    assert_eq!(
+        read(dir.path().join("body/0002-第一章 <出会い>/index.xhtml")),
+        "<div class=\"chapter-title\">\n<h1>第一章 &lt;出会い&gt;</h1>\n</div>\n"
+    );
+    assert!(dir.path().join("body/0003-第二章/index.xhtml").is_file());
+    // 章のない話と、話の単位には扉を置かない
+    let mut names: Vec<String> = fs::read_dir(dir.path().join("body"))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        [
+            "0000.xhtml",
+            "0001.md",
+            "0002-第一章 <出会い>",
+            "0003-第二章"
+        ]
+    );
+    assert_eq!(
+        fs::read_dir(dir.path().join("body/0003-第二章"))
+            .unwrap()
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn puts_contents_before_the_body_of_books_with_episodes() {
+    let dir = tempfile::tempdir().unwrap();
+    let novel = book(vec![
+        episode(1, "プロローグ", None, "一"),
+        episode(2, "第1話 <始まり>", Some("第一章 出会い"), "二"),
+        episode(3, "第2話", Some("第一章 出会い"), "三"),
+    ]);
+    write_project(dir.path(), &novel).unwrap();
+    // 名前の順で本文の最初に来る
+    assert_eq!(
+        read(dir.path().join("body/0000.xhtml")),
+        "<h1>目次</h1>\n<ol class=\"contents\">\n\
+         <li><a href=\"0001.md\">プロローグ</a></li>\n\
+         <li><a href=\"0002-%E7%AC%AC%E4%B8%80%E7%AB%A0%20%E5%87%BA%E4%BC%9A%E3%81%84/index.xhtml\">第一章 出会い</a>\n<ol>\n\
+         <li><a href=\"0002-%E7%AC%AC%E4%B8%80%E7%AB%A0%20%E5%87%BA%E4%BC%9A%E3%81%84/0001.md\">第1話 &lt;始まり&gt;</a></li>\n\
+         <li><a href=\"0002-%E7%AC%AC%E4%B8%80%E7%AB%A0%20%E5%87%BA%E4%BC%9A%E3%81%84/0002.md\">第2話</a></li>\n\
+         </ol>\n</li>\n\
+         </ol>\n"
+    );
+
+    // 一話だけの本には置かない
+    let dir = tempfile::tempdir().unwrap();
+    write_project(dir.path(), &book(vec![episode(1, "第1話", None, "一")])).unwrap();
+    assert!(!dir.path().join("body/0000.xhtml").exists());
+}
+
+#[test]
 fn widens_numbers_when_there_are_many_entries() {
     let dir = tempfile::tempdir().unwrap();
     let episodes = (1..=10_000)
         .map(|n| episode(n, &format!("第{n}話"), None, "本文"))
         .collect();
     write_project(dir.path(), &book(episodes)).unwrap();
+    assert!(dir.path().join("body/00000.xhtml").is_file());
     assert!(dir.path().join("body/00001.md").is_file());
     assert!(dir.path().join("body/10000.md").is_file());
 }
@@ -372,7 +493,10 @@ fn zips_project_inside_a_directory() {
         [
             "合成データの作品/assets/style.css",
             "合成データの作品/body/0001-第一章/0001.md",
+            "合成データの作品/body/0001-第一章/index.xhtml",
             "合成データの作品/book.toml",
+            "合成データの作品/meta/colophon.xhtml",
+            "合成データの作品/meta/titlepage.xhtml",
         ]
     );
     let mut body = String::new();

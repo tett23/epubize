@@ -38,6 +38,12 @@ pub struct Book {
     pub title: String,
     pub author: String,
     pub description: String,
+    /// 掲載しているサイト（`narou` など）
+    pub site: String,
+    /// 元の作品の URL。話だけの本なら話の URL
+    pub url: String,
+    /// 本を作った日（ローカル時刻、`YYYY-MM-DD`）。奥付に書く
+    pub created_on: String,
     /// 縦書きか。整形の設定の組方向（ADR 0011）から決める
     pub vertical: bool,
     /// 段落の間の余白をなくすか。整形の設定の removeEmptyLine（ADR 0030）
@@ -50,6 +56,9 @@ pub struct Book {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Episode {
     pub id: i64,
+    /// 目次の上での 1 始まりの位置
+    pub no: i64,
+    pub url: String,
     pub title: String,
     /// 章の名前。続く話で同じ名前なら同じ章にまとめる
     pub chapter: Option<String>,
@@ -81,9 +90,9 @@ pub fn load(conn: &Connection, scope: Scope) -> Result<Book, String> {
             (novel_id, Some((id, no)))
         }
     };
-    let (site, site_id, novel_title, author, description, options) = conn
+    let (site, site_id, novel_title, author, description, options, novel_url) = conn
         .query_row(
-            "SELECT site, site_id, title, author_name, description, normalize_options
+            "SELECT site, site_id, title, author_name, description, normalize_options, url
              FROM novels WHERE id = ?1",
             [novel_id],
             |row| {
@@ -94,6 +103,7 @@ pub fn load(conn: &Connection, scope: Scope) -> Result<Book, String> {
                     row.get::<_, String>(3)?,
                     row.get::<_, String>(4)?,
                     row.get::<_, Option<String>>(5)?,
+                    row.get::<_, String>(6)?,
                 ))
             },
         )
@@ -103,7 +113,7 @@ pub fn load(conn: &Connection, scope: Scope) -> Result<Book, String> {
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, title, chapter, preface, body, afterword FROM episodes
+            "SELECT id, no, url, title, chapter, preface, body, afterword FROM episodes
              WHERE novel_id = ?1 AND body_fetched_at IS NOT NULL AND (?2 IS NULL OR id = ?2)
              ORDER BY no",
         )
@@ -112,11 +122,13 @@ pub fn load(conn: &Connection, scope: Scope) -> Result<Book, String> {
         .query_map(params![novel_id, episode.map(|(id, _)| id)], |row| {
             Ok(Episode {
                 id: row.get(0)?,
-                title: row.get(1)?,
-                chapter: row.get(2)?,
-                preface: row.get(3)?,
-                body: row.get(4)?,
-                afterword: row.get(5)?,
+                no: row.get(1)?,
+                url: row.get(2)?,
+                title: row.get(3)?,
+                chapter: row.get(4)?,
+                preface: row.get(5)?,
+                body: row.get(6)?,
+                afterword: row.get(7)?,
             })
         })
         .map_err(sql)?
@@ -126,14 +138,15 @@ pub fn load(conn: &Connection, scope: Scope) -> Result<Book, String> {
         return Err("本文を取得した話がありません".into());
     }
 
-    let (identifier, title) = match episode {
-        None => (format!("epubize:{site}:{site_id}"), novel_title),
+    let (identifier, title, url) = match episode {
+        None => (format!("epubize:{site}:{site_id}"), novel_title, novel_url),
         Some((_, no)) => {
             // 一話だけの本では章にまとめない
             episodes[0].chapter = None;
             (
                 format!("epubize:{site}:{site_id}:{no}"),
                 format!("{novel_title} {}", episodes[0].title),
+                episodes[0].url.clone(),
             )
         }
     };
@@ -169,6 +182,9 @@ pub fn load(conn: &Connection, scope: Scope) -> Result<Book, String> {
         title,
         author,
         description,
+        site,
+        url,
+        created_on: chrono::Local::now().format("%Y-%m-%d").to_string(),
         vertical: is_vertical(options.as_deref()),
         remove_empty_line: removes_empty_line(options.as_deref()),
         episodes,
@@ -244,28 +260,189 @@ pub fn write_project(dir: &Path, book: &Book) -> Result<(), String> {
         }
     }
 
+    fs::create_dir_all(dir.join("meta")).map_err(io)?;
+    fs::write(dir.join("meta/titlepage.xhtml"), titlepage(book)).map_err(io)?;
+    fs::write(dir.join("meta/colophon.xhtml"), colophon(book)).map_err(io)?;
+
     let groups = groups(&book.episodes);
     let outer = width(groups.len());
-    for (index, group) in groups.iter().enumerate() {
-        match group {
-            Group::Single(episode) => {
-                let path = dir.join("body").join(format!("{:0outer$}.md", index + 1));
-                fs::write(path, episode_markdown(episode, &names, "../")).map_err(io)?;
+    // 二話以上の本には、本文の最初に目次のページを置く。epub-builder は目次のページを作らないため
+    if book.episodes.len() > 1 {
+        let path = dir.join("body").join(format!("{:0outer$}.xhtml", 0));
+        fs::write(path, contents(&groups, outer)).map_err(io)?;
+    }
+    for (chapter, files) in body_path(&groups, outer) {
+        // 章ごとに扉を置く。epub-builder はディレクトリの index を部の扉とし、目次の章の項目の行き先にする
+        if let Some((name, chapter_dir)) = chapter {
+            let path = dir.join("body").join(chapter_dir);
+            fs::create_dir_all(&path).map_err(io)?;
+            fs::write(path.join("index.xhtml"), chapter_title(name)).map_err(io)?;
+        }
+        for (path, episode) in files {
+            let path_in_body = dir.join("body").join(&path);
+            if let Some(parent) = path_in_body.parent() {
+                fs::create_dir_all(parent).map_err(io)?;
             }
-            Group::Chapter(name, episodes) => {
-                let chapter =
-                    dir.join("body")
-                        .join(format!("{:0outer$}-{}", index + 1, file_name(name)));
-                fs::create_dir_all(&chapter).map_err(io)?;
-                let inner = width(episodes.len());
-                for (i, episode) in episodes.iter().enumerate() {
-                    let path = chapter.join(format!("{:0inner$}.md", i + 1));
-                    fs::write(path, episode_markdown(episode, &names, "../../")).map_err(io)?;
-                }
-            }
+            // 章のディレクトリの中からは、もう一段上を指す
+            let root = if path.contains('/') { "../../" } else { "../" };
+            fs::write(path_in_body, episode_markdown(episode, &names, root)).map_err(io)?;
         }
     }
     Ok(())
+}
+
+/// 章（名前とディレクトリ）と、その章の話の本文のファイル（`body/` からの相対パス）。
+/// 章のない話は章を持たない
+type BodyFiles<'a> = Vec<(Option<(&'a str, String)>, Vec<(String, &'a Episode)>)>;
+
+fn body_path<'a>(groups: &[Group<'a>], outer: usize) -> BodyFiles<'a> {
+    groups
+        .iter()
+        .enumerate()
+        .map(|(index, group)| match group {
+            Group::Single(episode) => (None, vec![(format!("{:0outer$}.md", index + 1), *episode)]),
+            Group::Chapter(name, episodes) => {
+                let dir = format!("{:0outer$}-{}", index + 1, file_name(name));
+                let inner = width(episodes.len());
+                (
+                    Some((*name, dir.clone())),
+                    episodes
+                        .iter()
+                        .enumerate()
+                        .map(|(i, episode)| (format!("{dir}/{:0inner$}.md", i + 1), *episode))
+                        .collect(),
+                )
+            }
+        })
+        .collect()
+}
+
+/// 章の扉。章の名前を置く
+fn chapter_title(name: &str) -> String {
+    format!(
+        "<div class=\"chapter-title\">\n<h1>{}</h1>\n</div>\n",
+        xml_text(name)
+    )
+}
+
+/// 本の扉。題名と著者を置く
+fn titlepage(book: &Book) -> String {
+    let mut html = String::from("<div class=\"titlepage\">\n");
+    let _ = writeln!(html, "<h1>{}</h1>", xml_text(&book.title));
+    if !book.author.trim().is_empty() {
+        let _ = writeln!(html, "<p class=\"author\">{}</p>", xml_text(&book.author));
+    }
+    html.push_str("</div>\n");
+    html
+}
+
+/// 目次のページ。章は入れ子にし、話は本文の文書を指す。epub-builder がリンクを書き換える
+fn contents(groups: &[Group], outer: usize) -> String {
+    let mut html = String::from("<h1>目次</h1>\n<ol class=\"contents\">\n");
+    let link = |path: &str, episode: &Episode| {
+        format!(
+            "<li><a href=\"{}\">{}</a></li>\n",
+            percent_encode(path),
+            xml_text(&episode.title)
+        )
+    };
+    for (chapter, files) in body_path(groups, outer) {
+        match chapter {
+            None => {
+                for (path, episode) in files {
+                    html.push_str(&link(&path, episode));
+                }
+            }
+            Some((name, dir)) => {
+                let _ = writeln!(
+                    html,
+                    "<li><a href=\"{}\">{}</a>\n<ol>",
+                    percent_encode(&format!("{dir}/index.xhtml")),
+                    xml_text(name)
+                );
+                for (path, episode) in files {
+                    html.push_str(&link(&path, episode));
+                }
+                html.push_str("</ol>\n</li>\n");
+            }
+        }
+    }
+    html.push_str("</ol>\n");
+    html
+}
+
+/// 奥付。題名、著者、掲載しているサイトと URL、収録した話、作った日を置く
+fn colophon(book: &Book) -> String {
+    let mut html = String::from("<h1>奥付</h1>\n<dl class=\"colophon\">\n");
+    let mut row = |term: &str, value: String| {
+        let _ = writeln!(html, "<dt>{term}</dt>\n<dd>{value}</dd>");
+    };
+    row("題名", xml_text(&book.title));
+    if !book.author.trim().is_empty() {
+        row("著者", xml_text(&book.author));
+    }
+    row(
+        "掲載",
+        format!(
+            "{}<br/><a href=\"{url}\">{url}</a>",
+            xml_text(site_name(&book.site)),
+            url = xml_text(&book.url)
+        ),
+    );
+    let first = book.episodes.first().map_or(0, |e| e.no);
+    let last = book.episodes.last().map_or(0, |e| e.no);
+    let count = book.episodes.len();
+    row(
+        "収録",
+        if count == 1 {
+            format!("第{first}話")
+        } else {
+            format!("第{first}話〜第{last}話のうち本文を取得した {count} 話")
+        },
+    );
+    row("作成", format!("{} epubize", xml_text(&book.created_on)));
+    html.push_str("</dl>\n");
+    html
+}
+
+/// 掲載しているサイトの名前
+fn site_name(site: &str) -> &str {
+    match site {
+        "narou" => "小説家になろう",
+        "novel18" => "小説家になろう（R18）",
+        "hameln" => "ハーメルン",
+        "kakuyomu" => "カクヨム",
+        other => other,
+    }
+}
+
+/// XHTML の文字と属性の値に書けるようにする
+fn xml_text(text: &str) -> String {
+    text.chars()
+        .filter(|c| !c.is_control() || matches!(c, '\n' | '\t'))
+        .fold(String::with_capacity(text.len()), |mut s, c| {
+            match c {
+                '&' => s.push_str("&amp;"),
+                '<' => s.push_str("&lt;"),
+                '>' => s.push_str("&gt;"),
+                '"' => s.push_str("&quot;"),
+                c => s.push(c),
+            }
+            s
+        })
+}
+
+/// リンクのパスを、ASCII の英数字と `-._~/` のほかをパーセントエンコードした形にする
+fn percent_encode(path: &str) -> String {
+    let mut encoded = String::with_capacity(path.len());
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte) {
+            encoded.push(byte as char);
+        } else {
+            let _ = write!(encoded, "%{byte:02X}");
+        }
+    }
+    encoded
 }
 
 enum Group<'a> {
@@ -382,6 +559,34 @@ fn toml_string(value: &str) -> String {
 /// 本文は 1 行が 1 段落になっている（ADR 0009）。removeEmptyLine が有効なら段落の余白をなくし、
 /// 行の間が空かないようにする。無効なら余白を指定せず、リーダーの既定の余白で段落の間を空ける。
 /// 作者の入れた空行（`<br>` だけの段落）は、どちらでも 1 行分残る
+/// 扉、目次、奥付のスタイル。縦書きと横書きの両方で使えるよう、論理プロパティで書く
+const FRONT_AND_BACK_MATTER: &str = "\
+.titlepage {
+  margin-block-start: 3em;
+}
+.chapter-title {
+  margin-block-start: 3em;
+}
+.titlepage .author {
+  margin-block-start: 2em;
+  text-align: end;
+}
+ol.contents, ol.contents ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+ol.contents ol {
+  padding-inline-start: 1em;
+}
+dl.colophon dt {
+  font-weight: bold;
+}
+dl.colophon dd {
+  margin: 0 0 0.5em 0;
+}
+";
+
 fn stylesheet(vertical: bool, remove_empty_line: bool) -> String {
     let mut css = String::new();
     if vertical {
@@ -393,6 +598,7 @@ fn stylesheet(vertical: bool, remove_empty_line: bool) -> String {
         css.push_str("p {\n  margin: 0;\n}\n");
     }
     css.push_str("img {\n  max-width: 100%;\n  max-height: 100%;\n}\n");
+    css.push_str(FRONT_AND_BACK_MATTER);
     css
 }
 
