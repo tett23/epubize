@@ -1,8 +1,8 @@
 import { Fragment } from "react";
 import { useParams } from "react-router";
 import { ExternalLink } from "../components/ExternalLink";
-import { NormalizeOptionsForm, useNormalizeOptions } from "../components/NormalizeOptionsForm";
 import { AuthorLink, EpisodeTitle } from "../components/links";
+import { NormalizeOptionsForm, useNormalizeOptions } from "../components/NormalizeOptionsForm";
 import { ActionButton, ButtonGroup, PendingButton, SentMark } from "../components/ui";
 import { fetchNovel, novelDetail, removeEpisodes } from "../data";
 import { useLoad } from "../hooks";
@@ -13,7 +13,7 @@ import { LoadError } from "./Root";
 
 export function NovelDetail() {
   const novelId = Number(useParams().novelId);
-  const { data, error } = useLoad(() => novelDetail(novelId), [novelId]);
+  const { data, error, reload } = useLoad(() => novelDetail(novelId), [novelId]);
   if (error) {
     return <LoadError error={error} />;
   }
@@ -23,10 +23,10 @@ export function NovelDetail() {
   if (data === null) {
     return <p>作品が見つかりません。</p>;
   }
-  return <Novel novel={data} />;
+  return <Novel novel={data} reload={reload} />;
 }
 
-function Novel({ novel }: { novel: NovelDetailData }) {
+function Novel({ novel, reload }: { novel: NovelDetailData; reload: () => void }) {
   const normalize = useNormalizeOptions(novel.id, novel.normalizeOptions);
 
   return (
@@ -48,7 +48,10 @@ function Novel({ novel }: { novel: NovelDetailData }) {
       <ButtonGroup>
         <ActionButton action={() => fetchNovel(novel.id)}>fetch</ActionButton>
         <ActionButton
-          action={() => removeEpisodes(novel.id)}
+          action={async () => {
+            await removeEpisodes(novel.id);
+            reload();
+          }}
           confirm="この作品の話を全て消します。取得した本文も消えます。よろしいですか？"
         >
           remove episodes
@@ -73,8 +76,8 @@ function Episodes({ novel }: { novel: NovelDetailData }) {
             {novel.title}
           </th>
         </tr>
-        {groupChapters(novel.episodes).map((chapter, i) => (
-          <Fragment key={i}>
+        {groupChapters(novel.episodes).map((chapter) => (
+          <Fragment key={chapter.episodes[0]?.id ?? chapter.title}>
             {chapter.title != null && (
               <tr>
                 <th colSpan={3} className="pt-4 pb-1 pl-2 text-left font-bold">

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
 
 export const linkClass =
@@ -43,13 +43,7 @@ export function Button({
   children: ReactNode;
 }) {
   return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={buttonClass}
-    >
+    <button type={type} onClick={onClick} disabled={disabled} title={title} className={buttonClass}>
       {children}
     </button>
   );
@@ -66,7 +60,8 @@ export function PendingButton({ children }: { children: ReactNode }) {
 
 /**
  * 押すと `action` を呼ぶボタン。終わるまで押せなくし、失敗したら理由をボタンの横に出す。
- * `confirm` があれば、押したときに確かめてから呼ぶ
+ * `confirm` があれば、押したときにボタンの横に確認の文と「実行する」「やめる」を出し、実行するを押したときに呼ぶ。
+ * Tauri の WebView では `window.confirm` のダイアログが出ないため、画面の中で確かめる
  */
 export function ActionButton({
   action,
@@ -78,11 +73,10 @@ export function ActionButton({
   children: ReactNode;
 }) {
   const [running, setRunning] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const onClick = async () => {
-    if (confirm != null && !window.confirm(confirm)) {
-      return;
-    }
+  const run = async () => {
+    setConfirming(false);
     setRunning(true);
     try {
       await action();
@@ -93,12 +87,26 @@ export function ActionButton({
       setRunning(false);
     }
   };
+  const onClick = () => {
+    if (confirm != null) {
+      setConfirming(true);
+      return;
+    }
+    void run();
+  };
 
   return (
-    <span className="inline-flex items-center gap-2">
-      <Button onClick={onClick} disabled={running}>
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <Button onClick={onClick} disabled={running || confirming}>
         {children}
       </Button>
+      {confirming && (
+        <span role="alertdialog" aria-label={confirm} className="inline-flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-red-700 dark:text-red-400">{confirm}</span>
+          <Button onClick={() => void run()}>実行する</Button>
+          <Button onClick={() => setConfirming(false)}>やめる</Button>
+        </span>
+      )}
       {error && (
         <span role="alert" className="text-sm text-red-600 dark:text-red-400">
           {error}
