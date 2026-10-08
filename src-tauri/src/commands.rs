@@ -257,12 +257,82 @@ pub fn save_settings(
     fetch: State<'_, FetchState>,
     schedule: State<'_, ScheduleState>,
 ) -> Result<(), String> {
-    let next = settings::save(&paths.settings, &settings)?;
-    fetch
-        .0
-        .set_crawler(crawler(&settings).map(|c| Arc::new(c) as Arc<dyn Crawler>));
-    *schedule.0.write().unwrap() = next;
+    apply_settings(&paths.settings, &fetch.0, &schedule.0, &settings)
+}
+
+/// 設定を保存し、保存できたら取得のキューと定期取得に反映する。保存できなければ何も変えない
+fn apply_settings(
+    path: &std::path::Path,
+    fetcher: &Fetcher,
+    schedule: &RwLock<Schedule>,
+    settings: &Settings,
+) -> Result<(), String> {
+    let next = settings::save(path, settings)?;
+    fetcher.set_crawler(crawler(settings).map(|c| Arc::new(c) as Arc<dyn Crawler>));
+    *schedule.write().unwrap() = next;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::settings::ScheduleSettings;
+    use chrono::NaiveTime;
+
+    fn executable(dir: &std::path::Path) -> String {
+        let path = dir.join("crawler");
+        std::fs::write(&path, "#!/bin/sh\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        path.to_string_lossy().into_owned()
+    }
+
+    fn fetcher() -> Fetcher {
+        let queues = Queues::new(tokio::runtime::Handle::current());
+        Fetcher::new(queues, None, Arc::new(|_, _| {}))
+    }
+
+    #[tokio::test]
+    async fn applies_saved_settings_to_crawler_and_schedule() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(settings::FILENAME);
+        let fetcher = fetcher();
+        let schedule = RwLock::new(Schedule::default());
+        let settings = Settings {
+            crawler_path: Some(executable(dir.path())),
+            schedule: ScheduleSettings {
+                enabled: false,
+                at: "04:30".into(),
+            },
+        };
+
+        apply_settings(&path, &fetcher, &schedule, &settings).unwrap();
+        assert!(fetcher.has_crawler());
+        let applied = *schedule.read().unwrap();
+        assert!(!applied.enabled);
+        assert_eq!(applied.at, NaiveTime::from_hms_opt(4, 30, 0).unwrap());
+        assert_eq!(settings::load(&path).unwrap(), settings);
+    }
+
+    #[tokio::test]
+    async fn changes_nothing_when_settings_are_invalid() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(settings::FILENAME);
+        let fetcher = fetcher();
+        let schedule = RwLock::new(Schedule::default());
+        let invalid = Settings {
+            crawler_path: Some("/nonexistent/crawler".into()),
+            ..Settings::default()
+        };
+
+        assert!(apply_settings(&path, &fetcher, &schedule, &invalid).is_err());
+        assert!(!fetcher.has_crawler());
+        assert_eq!(*schedule.read().unwrap(), Schedule::default());
+        assert!(!path.exists());
+    }
 }
 
 #[tauri::command]

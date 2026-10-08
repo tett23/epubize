@@ -3,9 +3,7 @@ import { marked } from "marked";
 import type { EpisodeDetail } from "../models";
 
 /** 話の題名、前書き、本文、後書きを 1 つの Markdown にする。前書きと後書きは区切り線で分ける */
-export function episodeMarkdown(
-  episode: Pick<EpisodeDetail, "title" | "preface" | "body" | "afterword">,
-): string {
+export function episodeMarkdown(episode: Pick<EpisodeDetail, "title" | "preface" | "body" | "afterword">): string {
   const sections = [episode.preface, episode.body, episode.afterword].filter((part): part is string => part != null);
   return [`## ${episode.title}`, sections.join("\n\n---\n\n")].join("\n\n");
 }

@@ -29,6 +29,18 @@ pnpm install
 pnpm tauri dev
 ```
 
+検査とテスト([ADR 0022](docs/adr/0022-development-infrastructure.md))。E2E テストは、Tauri のコマンドを偽物に差し替えて Vite の開発サーバーに対して動かす。
+
+```bash
+pnpm lint                          # Biome による lint と整形の検査(pnpm format で直す)
+pnpm test                          # vitest
+pnpm exec playwright install chromium  # 初回だけ
+pnpm e2e                           # Playwright
+(cd src-tauri && cargo test)
+```
+
+配布物は、`v` で始まるタグを push すると GitHub Actions が macOS 向けの `.app` と `.dmg` を作り、下書きの Release に添付する(署名なし)。
+
 データは `development` と `production` の環境ごとに分けて置く([ADR 0014](docs/adr/0014-subscriptions-json-and-environment-directories.md))。
 環境は `EPUBIZE_ENV` で指定でき、指定しなければ debug ビルドは `development`、release ビルドは `production` になる。
 

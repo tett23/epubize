@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 import { ExternalLink } from "../components/ExternalLink";
 import { FetchPanel } from "../components/FetchPanel";
 import { AuthorLink, novelPath } from "../components/links";
@@ -7,7 +7,7 @@ import { addNovel, addSubscription, listNovels, listUnadded } from "../data";
 import { useLoad } from "../hooks";
 import { formatDateTime } from "../lib/format";
 import { libraryStats } from "../lib/library";
-import { uniqueId, type NovelSummary, type UnaddedNovel } from "../models";
+import { type NovelSummary, type UnaddedNovel, uniqueId } from "../models";
 
 export function Root() {
   const novels = useLoad(listNovels, []);

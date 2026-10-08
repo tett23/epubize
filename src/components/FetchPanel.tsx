@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import {
+  type FetchDone,
+  type FetchSchedule,
+  type FetchStatus,
   fetchAll,
   fetchAllMetadata,
   fetchSchedule,
   fetchStatus,
   onFetchDone,
   onScheduledFetch,
-  type FetchDone,
-  type FetchSchedule,
-  type FetchStatus,
 } from "../data";
 import { Button, ButtonGroup } from "./ui";
 
@@ -24,7 +24,8 @@ type Message = { kind: "info" | "error"; text: string };
 export function FetchPanel() {
   const [status, setStatus] = useState<FetchStatus | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
-  const [results, setResults] = useState<FetchDone[]>([]);
+  /** 取得の結果。`seq` は表示の key に使う通し番号 */
+  const [results, setResults] = useState<(FetchDone & { seq: number })[]>([]);
   const [schedule, setSchedule] = useState<FetchSchedule | null>(null);
 
   useEffect(() => {
@@ -37,7 +38,10 @@ export function FetchPanel() {
       ),
     );
     return () => {
-      void unlisten.then((stop) => stop(), () => undefined);
+      void unlisten.then(
+        (stop) => stop(),
+        () => undefined,
+      );
     };
   }, []);
 
@@ -49,9 +53,17 @@ export function FetchPanel() {
   }, []);
 
   useEffect(() => {
-    const unlisten = onFetchDone((done) => setResults((prev) => [done, ...prev].slice(0, MAX_RESULTS)));
+    let seq = 0;
+    const unlisten = onFetchDone((done) => {
+      seq += 1;
+      const item = { ...done, seq };
+      setResults((prev) => [item, ...prev].slice(0, MAX_RESULTS));
+    });
     return () => {
-      void unlisten.then((stop) => stop(), () => undefined);
+      void unlisten.then(
+        (stop) => stop(),
+        () => undefined,
+      );
     };
   }, []);
 
@@ -95,8 +107,8 @@ export function FetchPanel() {
       )}
       {results.length > 0 && (
         <ul className="max-h-48 space-y-0.5 overflow-y-auto rounded border border-neutral-200 p-2 text-sm dark:border-neutral-700">
-          {results.map((result, i) => (
-            <li key={i} className={result.error ? "text-red-600 dark:text-red-400" : ""}>
+          {results.map((result) => (
+            <li key={result.seq} className={result.error ? "text-red-600 dark:text-red-400" : ""}>
               {result.command} {result.url} {result.error ? `: ${result.error}` : "ok"}
             </li>
           ))}

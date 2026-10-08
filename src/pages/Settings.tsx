@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { ExternalLink } from "../components/ExternalLink";
 import { novelPath } from "../components/links";
 import { ActionButton, Button, InternalLink } from "../components/ui";
@@ -7,11 +7,11 @@ import {
   listNovels,
   listSubscriptions,
   removeSubscription,
-  saveSettings,
   type SettingsView,
+  saveSettings,
 } from "../data";
 import { useLoad } from "../hooks";
-import { uniqueId, type NovelSummary } from "../models";
+import { type NovelSummary, uniqueId } from "../models";
 import { LoadError } from "./Root";
 
 /** 管理画面（ADR 0020） */

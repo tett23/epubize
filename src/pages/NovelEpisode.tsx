@@ -1,14 +1,14 @@
 import { useParams } from "react-router";
 import { ExternalLink } from "../components/ExternalLink";
-import { NormalizeOptionsForm, useNormalizeOptions } from "../components/NormalizeOptionsForm";
 import { episodePath, novelPath } from "../components/links";
+import { NormalizeOptionsForm, useNormalizeOptions } from "../components/NormalizeOptionsForm";
 import { ActionButton, ButtonGroup, InternalLink, PendingButton, SentMark } from "../components/ui";
 import { episodeDetail, novelDetail, refetchEpisode } from "../data";
 import { useLoad } from "../hooks";
 import { formatDate } from "../lib/format";
 import { adjacentEpisodes } from "../lib/library";
 import { episodeMarkdown, renderMarkdown } from "../lib/markdown";
-import { uniqueId, type EpisodeDetail, type EpisodeSummary, type NovelDetail } from "../models";
+import { type EpisodeDetail, type EpisodeSummary, type NovelDetail, uniqueId } from "../models";
 import type { NormalizeOptions } from "../normalizeOptions";
 import { LoadError } from "./Root";
 
@@ -56,7 +56,7 @@ function Episode({ novel, episode }: { novel: NovelDetail; episode: EpisodeDetai
         <PendingButton>send to Kindle</PendingButton>
       </ButtonGroup>
       <p className="text-sm text-neutral-700 dark:text-neutral-300">
-        {episode.revisedAt ?? episode.publishedAt
+        {(episode.revisedAt ?? episode.publishedAt)
           ? `updated at: ${formatDate((episode.revisedAt ?? episode.publishedAt) as string)}`
           : null}
       </p>
@@ -108,6 +108,7 @@ function Preview({ episode, options }: { episode: EpisodeDetail; options: Normal
   return (
     <div
       className={`novel-body rounded border border-neutral-200 p-6 font-serif leading-loose dark:border-neutral-700 ${layout}`}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: renderMarkdown が DOMPurify で安全化した HTML
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

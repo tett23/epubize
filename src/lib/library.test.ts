@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { EpisodeSummary, LatestEpisode, NovelSummary } from "../models";
 import { adjacentEpisodes, groupByDate, groupChapters, libraryStats } from "./library";
 
-function episode(id: number, no: number, chapter: string | null = null, publishedAt: string | null = null): EpisodeSummary {
+function episode(
+  id: number,
+  no: number,
+  chapter: string | null = null,
+  publishedAt: string | null = null,
+): EpisodeSummary {
   return {
     id,
     novelId: 1,

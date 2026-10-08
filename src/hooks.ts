@@ -19,15 +19,19 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[]): Loaded<T> {
   const loadRef = useRef(load);
   loadRef.current = load;
 
-  const reload = useCallback(() => {
-    loadRef.current().then(
-      (value) => {
-        setData(value);
-        setError(null);
-      },
-      (err: unknown) => setError(String(err)),
-    );
-  }, deps);
+  const reload = useCallback(
+    () => {
+      loadRef.current().then(
+        (value) => {
+          setData(value);
+          setError(null);
+        },
+        (err: unknown) => setError(String(err)),
+      );
+    },
+    // biome-ignore lint/correctness/useExhaustiveDependencies: 読み直す条件は呼び出し側が deps で渡す。load は ref から最新を読む
+    deps,
+  );
 
   useEffect(reload, [reload]);
 
@@ -39,7 +43,10 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[]): Loaded<T> {
     });
     return () => {
       clearTimeout(timer);
-      void unlisten.then((stop) => stop(), () => undefined);
+      void unlisten.then(
+        (stop) => stop(),
+        () => undefined,
+      );
     };
   }, [reload]);
 

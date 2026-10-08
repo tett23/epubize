@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { setNormalizeOptions } from "../data";
-import { resolveNormalizeOptions, type NormalizeOptions } from "../normalizeOptions";
+import { type NormalizeOptions, resolveNormalizeOptions } from "../normalizeOptions";
 
 type BooleanKey = {
   [K in keyof NormalizeOptions]: NormalizeOptions[K] extends boolean ? K : never;
@@ -26,7 +26,7 @@ export function useNormalizeOptions(novelId: number, stored: Record<string, unkn
 
   useEffect(() => {
     setOptions(resolveNormalizeOptions(stored));
-  }, [novelId, stored]);
+  }, [stored]);
 
   const update = <K extends keyof NormalizeOptions>(key: K, value: NormalizeOptions[K]) => {
     const next = { ...options, [key]: value };

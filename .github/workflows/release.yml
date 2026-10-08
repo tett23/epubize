@@ -1,0 +1,42 @@
+name: Release
+
+# v で始まるタグを push したとき、または手で動かしたときに、macOS 向けの配布物を作る（ADR 0022）。
+# 署名と公証はしない。作ったものは下書きの GitHub Release に添付する（手で動かしたときは成果物として残す）
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: macOS
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tauri build --bundles app,dmg
+      - uses: actions/upload-artifact@v7
+        with:
+          name: epubize-macos
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.app
+          retention-days: 30
+      - name: Create a draft release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --draft --generate-notes src-tauri/target/release/bundle/dmg/*.dmg
