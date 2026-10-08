@@ -1,15 +1,26 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { ExternalLink } from "../components/ExternalLink";
-import { ActionButton, Button } from "../components/ui";
-import { getSettings, listSubscriptions, removeSubscription, saveSettings, type SettingsView } from "../data";
+import { novelPath } from "../components/links";
+import { ActionButton, Button, InternalLink } from "../components/ui";
+import {
+  getSettings,
+  listNovels,
+  listSubscriptions,
+  removeSubscription,
+  saveSettings,
+  type SettingsView,
+} from "../data";
 import { useLoad } from "../hooks";
-import { uniqueId } from "../models";
+import { uniqueId, type NovelSummary } from "../models";
 import { LoadError } from "./Root";
 
 /** 管理画面（ADR 0020） */
 export function Settings() {
   const view = useLoad(getSettings, []);
   const subscriptions = useLoad(listSubscriptions, []);
+  const novels = useLoad(listNovels, []);
+  // 購読と、取得済みの作品を対応させ、作品名を出す
+  const novelsById = new Map((novels.data ?? []).map((novel) => [uniqueId(novel), novel]));
 
   return (
     <div className="max-w-4xl space-y-8">
@@ -26,8 +37,11 @@ export function Settings() {
             <tbody>
               {subscriptions.data.map((item) => (
                 <tr key={uniqueId(item)} className="border-t border-neutral-200 dark:border-neutral-700">
-                  <td className="py-1 pr-4">
+                  <td className="py-1 pr-4 whitespace-nowrap">
                     <ExternalLink href={item.url}>{uniqueId(item)}</ExternalLink>
+                  </td>
+                  <td className="py-1 pr-4">
+                    <NovelTitle novel={novelsById.get(uniqueId(item))} />
                   </td>
                   <td className="py-1">
                     <ActionButton
@@ -52,6 +66,13 @@ export function Settings() {
       {view.data && <Info view={view.data} />}
     </div>
   );
+}
+
+function NovelTitle({ novel }: { novel: NovelSummary | undefined }) {
+  if (novel == null) {
+    return <span className="text-sm text-neutral-500 dark:text-neutral-400">（未取得）</span>;
+  }
+  return <InternalLink to={novelPath(novel.id)}>{novel.title}</InternalLink>;
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
