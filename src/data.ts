@@ -134,3 +134,44 @@ export function onScheduledFetch(listener: (result: { Ok: number } | { Err: stri
   }
   return listen<{ Ok: number } | { Err: string }>("scheduled-fetch", (event) => listener(event.payload));
 }
+
+/** 管理画面で変える設定（ADR 0020） */
+export type Settings = {
+  /** クローラーの実行ファイル。null なら自動で探す */
+  crawlerPath: string | null;
+  schedule: { enabled: boolean; at: string };
+};
+
+export type SettingsView = {
+  settings: Settings;
+  /** 設定のファイルを読めなかったときの理由 */
+  loadError: string | null;
+  /** いま使っているクローラーの実行ファイル */
+  crawlerInUse: string | null;
+  /** 実行ファイルを指定しなかったときに自動で見つかるもの */
+  crawlerFound: string | null;
+  environment: string;
+  subscriptionsPath: string;
+  settingsPath: string;
+  databasePath: string;
+};
+
+export function getSettings(): Promise<SettingsView> {
+  return invoke<SettingsView>("get_settings");
+}
+
+/** 設定を確かめて保存し、すぐに反映する。値が正しくなければ理由の文字列で reject する */
+export function saveSettings(settings: Settings): Promise<void> {
+  return invoke("save_settings", { settings });
+}
+
+/** 作品を購読から外す。取得済みの作品のデータは消さない。外したら true */
+export function removeSubscription(site: SourceName, siteId: string): Promise<boolean> {
+  return invoke<boolean>("remove_subscription", { siteKey: site, siteId });
+}
+
+/** 購読している作品の一覧 */
+export async function listSubscriptions(): Promise<UnaddedNovel[]> {
+  const items = await invoke<SubscriptionItem[]>("list_subscriptions");
+  return items.map((item) => ({ site: item.site, siteId: item.id, url: item.url }));
+}

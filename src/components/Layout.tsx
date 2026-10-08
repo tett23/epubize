@@ -17,8 +17,9 @@ export function Layout() {
             epubize <small className="text-sm font-normal text-neutral-500">{environment}</small>
           </Link>
         </h1>
-        <nav>
+        <nav className="flex gap-4">
           <InternalLink to="/episodes/latest">latest</InternalLink>
+          <InternalLink to="/settings">settings</InternalLink>
         </nav>
       </header>
       <main>
