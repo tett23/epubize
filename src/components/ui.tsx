@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 
 export const linkClass =
@@ -44,6 +44,50 @@ export function PendingButton({ children }: { children: ReactNode }) {
     <Button disabled title="未実装">
       {children}
     </Button>
+  );
+}
+
+/**
+ * 押すと `action` を呼ぶボタン。終わるまで押せなくし、失敗したら理由をボタンの横に出す。
+ * `confirm` があれば、押したときに確かめてから呼ぶ
+ */
+export function ActionButton({
+  action,
+  confirm,
+  children,
+}: {
+  action: () => Promise<unknown>;
+  confirm?: string;
+  children: ReactNode;
+}) {
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const onClick = async () => {
+    if (confirm != null && !window.confirm(confirm)) {
+      return;
+    }
+    setRunning(true);
+    try {
+      await action();
+      setError(null);
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <span className="inline-flex items-center gap-2">
+      <Button onClick={onClick} disabled={running}>
+        {children}
+      </Button>
+      {error && (
+        <span role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </span>
+      )}
+    </span>
   );
 }
 

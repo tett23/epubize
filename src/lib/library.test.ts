@@ -1,51 +1,52 @@
 import { describe, expect, it } from "vitest";
-import type { Episode, Novel } from "../models";
-import { adjacentEpisodes, latestEpisodes, libraryStats, sortNovels } from "./library";
+import type { EpisodeSummary, LatestEpisode, NovelSummary } from "../models";
+import { adjacentEpisodes, groupByDate, groupChapters, libraryStats } from "./library";
 
-function episode(id: number, part: number, originCreatedAt: string, bodyFetched = true): Episode {
+function episode(id: number, no: number, chapter: string | null = null, publishedAt: string | null = null): EpisodeSummary {
   return {
     id,
-    novelId: 0,
-    part,
+    novelId: 1,
+    no,
     url: `https://example.com/${id}`,
-    title: `話 ${part}`,
-    originCreatedAt,
-    updatedAt: originCreatedAt,
-    bodyFetched,
-    isSent: false,
-    preface: null,
-    body: null,
-    afterword: null,
+    title: `話 ${no}`,
+    chapter,
+    publishedAt,
+    revisedAt: null,
+    bodyFetchedAt: null,
+    sentAt: null,
   };
 }
 
-function novel(id: number, episodeUpdatedAt: string, episodes: Episode[]): Novel {
+function novel(fetched: number, total: number): NovelSummary {
   return {
-    id,
-    sourceName: "narou",
-    sourceId: `n${id}`,
-    url: `https://example.com/n${id}`,
-    title: `作品 ${id}`,
-    author: { name: "作者", url: null },
-    description: "",
-    episodeUpdatedAt,
-    characterCount: 0,
-    isConcluded: false,
-    chapters: [{ title: null, episodes: episodes.map((e) => ({ ...e, novelId: id })) }],
+    id: 1,
+    site: "narou",
+    siteId: "n0001aa",
+    url: "https://example.com/n0001aa/",
+    title: "作品",
+    authorName: "作者",
+    authorUrl: null,
+    isConcluded: null,
+    latestPublishedAt: null,
+    fetched,
+    total,
+  };
+}
+
+function latest(id: number, publishedAt: string | null): LatestEpisode {
+  return {
+    novelId: 1,
+    site: "narou",
+    siteId: "n0001aa",
+    novelUrl: "https://example.com/n0001aa/",
+    novelTitle: "作品",
+    episode: episode(id, id, null, publishedAt),
   };
 }
 
 describe("libraryStats", () => {
   it("作品数・話数・未取得の話数と、取得にかかる時間の目安を数える", () => {
-    const novels = [
-      novel(1, "2026-01-01T00:00:00Z", [
-        episode(1, 1, "2026-01-01T00:00:00Z"),
-        episode(2, 2, "2026-01-01T00:00:00Z", false),
-      ]),
-      novel(2, "2026-01-01T00:00:00Z", [episode(3, 1, "2026-01-01T00:00:00Z", false)]),
-    ];
-
-    expect(libraryStats(novels)).toEqual({
+    expect(libraryStats([novel(1, 2), novel(0, 1)])).toEqual({
       novels: 2,
       novelsMinutes: 1,
       parts: 3,
@@ -67,55 +68,55 @@ describe("libraryStats", () => {
   });
 });
 
-describe("sortNovels", () => {
-  it("最新話の新しい順に並べる", () => {
-    const novels = [novel(1, "2026-01-01T00:00:00Z", []), novel(2, "2026-02-01T00:00:00Z", [])];
-    expect(sortNovels(novels).map((n) => n.id)).toEqual([2, 1]);
-  });
-});
-
-describe("latestEpisodes", () => {
+describe("groupByDate", () => {
   // 日付の区切りはローカル時刻で決まるため、時差の影響を受けない正午で作る
-  const novels = [
-    novel(1, "2026-03-02T12:00:00", [episode(1, 1, "2026-03-01T12:00:00"), episode(2, 2, "2026-03-02T12:00:00")]),
-    novel(2, "2026-02-01T12:00:00", [episode(3, 1, "2026-03-02T11:00:00"), episode(4, 2, "2026-02-01T12:00:00")]),
-  ].map((n) => ({
-    ...n,
-    chapters: n.chapters.map((c) => ({
-      ...c,
-      episodes: c.episodes.map((e) => ({ ...e, originCreatedAt: new Date(e.originCreatedAt).toISOString() })),
-    })),
-  }));
+  const at = (local: string) => new Date(local).toISOString();
 
-  it("全作品の話を新しい順に並べ、公開日ごとにまとめる", () => {
-    const groups = latestEpisodes(novels, 10);
+  it("公開日ごとにまとめ、並びを保つ", () => {
+    const groups = groupByDate([
+      latest(1, at("2026-03-02T12:00:00")),
+      latest(2, at("2026-03-02T11:00:00")),
+      latest(3, at("2026-03-01T12:00:00")),
+    ]);
     expect(groups.map((g) => [g.date, g.items.map((i) => i.episode.id)])).toEqual([
-      ["2026-03-02", [2, 3]],
-      ["2026-03-01", [1]],
-      ["2026-02-01", [4]],
+      ["2026-03-02", [1, 2]],
+      ["2026-03-01", [3]],
     ]);
   });
 
-  it("件数を絞る", () => {
-    const groups = latestEpisodes(novels, 2);
-    expect(groups.flatMap((g) => g.items.map((i) => i.episode.id))).toEqual([2, 3]);
+  it("公開日時のない話は飛ばす", () => {
+    expect(groupByDate([latest(1, null)])).toEqual([]);
+  });
+});
+
+describe("groupChapters", () => {
+  it("続く話で章の名前が同じものごとにまとめる", () => {
+    const chapters = groupChapters([
+      episode(1, 1, null),
+      episode(2, 2, "第一章"),
+      episode(3, 3, "第一章"),
+      episode(4, 4, "第二章"),
+      episode(5, 5, "第一章"),
+    ]);
+    expect(chapters.map((c) => [c.title, c.episodes.map((e) => e.id)])).toEqual([
+      [null, [1]],
+      ["第一章", [2, 3]],
+      ["第二章", [4]],
+      ["第一章", [5]],
+    ]);
   });
 });
 
 describe("adjacentEpisodes", () => {
-  const n = novel(1, "2026-01-01T00:00:00Z", [
-    episode(1, 1, "2026-01-01T00:00:00Z"),
-    episode(2, 2, "2026-01-02T00:00:00Z"),
-    episode(3, 3, "2026-01-03T00:00:00Z"),
-  ]);
+  const episodes = [episode(1, 1), episode(2, 2), episode(3, 3)];
 
-  it("前後の話を話数で探す", () => {
-    const { prev, next } = adjacentEpisodes(n, 2);
+  it("前後の話を目次の位置で探す", () => {
+    const { prev, next } = adjacentEpisodes(episodes, 2);
     expect([prev?.id, next?.id]).toEqual([1, 3]);
   });
 
   it("最初と最後の話では、ない側を null にする", () => {
-    expect(adjacentEpisodes(n, 1).prev).toBeNull();
-    expect(adjacentEpisodes(n, 3).next).toBeNull();
+    expect(adjacentEpisodes(episodes, 1).prev).toBeNull();
+    expect(adjacentEpisodes(episodes, 3).next).toBeNull();
   });
 });

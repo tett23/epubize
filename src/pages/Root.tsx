@@ -1,25 +1,39 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { ExternalLink } from "../components/ExternalLink";
 import { FetchPanel } from "../components/FetchPanel";
-import { AuthorLink, NovelSiteLink, novelPath } from "../components/links";
-import { Button, InternalLink, PartsCount, PendingButton } from "../components/ui";
-import { addSubscription, listNovels, listUnadded } from "../data";
+import { AuthorLink, novelPath } from "../components/links";
+import { ActionButton, Button, InternalLink, PartsCount } from "../components/ui";
+import { addNovel, addSubscription, listNovels, listUnadded } from "../data";
+import { useLoad } from "../hooks";
 import { formatDateTime } from "../lib/format";
-import { libraryStats, sortNovels } from "../lib/library";
-import { partsOf, uniqueId, type Novel, type UnaddedNovel } from "../models";
+import { libraryStats } from "../lib/library";
+import { uniqueId, type NovelSummary, type UnaddedNovel } from "../models";
 
 export function Root() {
-  const novels = sortNovels(listNovels());
-  const unadded = useUnadded();
+  const novels = useLoad(listNovels, []);
+  const unadded = useLoad(listUnadded, []);
 
   return (
     <div className="space-y-6">
       <AddNovelForm onAdded={unadded.reload} />
       <FetchPanel />
-      <Stats novels={novels} />
-      <Novels novels={novels} />
-      <Unadded {...unadded} />
+      {novels.error && <LoadError error={novels.error} />}
+      {novels.data && (
+        <>
+          <Stats novels={novels.data} />
+          <Novels novels={novels.data} />
+        </>
+      )}
+      <Unadded items={unadded.data ?? []} error={unadded.error} />
     </div>
+  );
+}
+
+export function LoadError({ error }: { error: string }) {
+  return (
+    <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+      読み込めません: {error}
+    </p>
   );
 }
 
@@ -73,7 +87,7 @@ function AddNovelForm({ onAdded }: { onAdded: () => void }) {
   );
 }
 
-function Stats({ novels }: { novels: Novel[] }) {
+function Stats({ novels }: { novels: NovelSummary[] }) {
   const s = libraryStats(novels);
   return (
     <p className="text-sm text-neutral-700 dark:text-neutral-300">
@@ -83,21 +97,31 @@ function Stats({ novels }: { novels: Novel[] }) {
   );
 }
 
-function Novels({ novels }: { novels: Novel[] }) {
+function Novels({ novels }: { novels: NovelSummary[] }) {
+  if (novels.length === 0) {
+    return (
+      <p className="text-sm text-neutral-600 dark:text-neutral-400">
+        作品はまだありません。未取得の作品の add か、fetch all で取得します。
+      </p>
+    );
+  }
   return (
     <table className="w-full border-collapse">
       <tbody className="divide-y divide-neutral-200 dark:divide-neutral-700">
         {novels.map((novel) => (
           <tr key={novel.id} className="align-top hover:bg-neutral-50 dark:hover:bg-neutral-800">
-            <td className="py-2 pr-4 whitespace-nowrap tabular-nums">{formatDateTime(novel.episodeUpdatedAt)}</td>
+            <td className="py-2 pr-4 whitespace-nowrap tabular-nums">
+              {novel.latestPublishedAt ? formatDateTime(novel.latestPublishedAt) : ""}
+            </td>
             <td className="py-2 pr-4 whitespace-nowrap">
-              <NovelSiteLink novel={novel}>{uniqueId(novel)}</NovelSiteLink>
+              <ExternalLink href={novel.url}>{uniqueId(novel)}</ExternalLink>
             </td>
             <td className="w-[20vw] py-2 pr-4">
-              <AuthorLink author={novel.author} />
+              <AuthorLink name={novel.authorName} url={novel.authorUrl} />
             </td>
             <td className="py-2">
-              <InternalLink to={novelPath(novel)}>{novel.title}</InternalLink> <PartsCount {...partsOf(novel)} />
+              <InternalLink to={novelPath(novel.id)}>{novel.title}</InternalLink>{" "}
+              <PartsCount fetched={novel.fetched} total={novel.total} />
             </td>
           </tr>
         ))}
@@ -106,30 +130,7 @@ function Novels({ novels }: { novels: Novel[] }) {
   );
 }
 
-type UnaddedState = {
-  items: UnaddedNovel[];
-  error: string | null;
-  reload: () => void;
-};
-
-function useUnadded(): UnaddedState {
-  const [items, setItems] = useState<UnaddedNovel[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const reload = useCallback(() => {
-    listUnadded().then(
-      (value) => {
-        setItems(value);
-        setError(null);
-      },
-      (err: unknown) => setError(String(err)),
-    );
-  }, []);
-  useEffect(reload, [reload]);
-
-  return { items, error, reload };
-}
-
-function Unadded({ items, error }: UnaddedState) {
+function Unadded({ items, error }: { items: UnaddedNovel[]; error: string | null }) {
   if (error == null && items.length === 0) {
     return null;
   }
@@ -137,11 +138,7 @@ function Unadded({ items, error }: UnaddedState) {
   return (
     <section className="space-y-2">
       <h2 className="text-lg font-bold">未取得</h2>
-      {error != null && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          購読の一覧を読めません: {error}
-        </p>
-      )}
+      {error != null && <LoadError error={error} />}
       <table className="border-collapse">
         <tbody>
           {items.map((item) => (
@@ -150,7 +147,7 @@ function Unadded({ items, error }: UnaddedState) {
                 <ExternalLink href={item.url}>{uniqueId(item)}</ExternalLink>
               </td>
               <td className="py-1">
-                <PendingButton>add</PendingButton>
+                <ActionButton action={() => addNovel(item.site, item.siteId)}>add</ActionButton>
               </td>
             </tr>
           ))}

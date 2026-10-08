@@ -1,75 +1,78 @@
+// 画面が扱うデータの形。Tauri のコマンドが返す JSON と同じ（src-tauri/src/library/query.rs、ADR 0018）
+
 export type SourceName = "narou" | "novel18" | "hameln" | "kakuyomu";
 
-export type Author = {
-  name: string;
-  /** 作者のページ。サイトが示さない場合は null */
-  url: string | null;
-};
-
-export type Episode = {
+export type NovelSummary = {
   id: number;
-  novelId: number;
-  /** 目次の上での話数（1 始まり） */
-  part: number;
+  site: SourceName;
+  siteId: string;
   url: string;
   title: string;
-  /** 公開日時（ISO 8601） */
-  originCreatedAt: string;
-  /** 改稿日時（ISO 8601） */
-  updatedAt: string;
-  /** 本文を取得済みか */
-  bodyFetched: boolean;
-  /** Kindle に送信済みか */
-  isSent: boolean;
-  /** 本文・前書き・後書き（CommonMark、ADR 0005・ADR 0009）。未取得なら null */
+  authorName: string;
+  /** 作者のページ。サイトが示さない場合は null */
+  authorUrl: string | null;
+  /** 完結済みか。分からなければ null */
+  isConcluded: boolean | null;
+  /** 最新話の公開日時（ISO 8601） */
+  latestPublishedAt: string | null;
+  /** 本文を取得済みの話数 */
+  fetched: number;
+  /** 目次の話数 */
+  total: number;
+};
+
+export type EpisodeSummary = {
+  id: number;
+  novelId: number;
+  /** 目次の上での 1 始まりの位置 */
+  no: number;
+  url: string;
+  title: string;
+  /** 章の名前。続く話で同じ名前なら同じ章 */
+  chapter: string | null;
+  publishedAt: string | null;
+  revisedAt: string | null;
+  /** 本文を取得した日時。未取得なら null */
+  bodyFetchedAt: string | null;
+  /** Kindle に送った日時 */
+  sentAt: string | null;
+};
+
+export type NovelDetail = NovelSummary & {
+  description: string;
+  /** 取得済みの話の文字数の合計 */
+  charCount: number;
+  metadataFetchedAt: string;
+  /** 整形の設定。null なら既定 */
+  normalizeOptions: Record<string, unknown> | null;
+  episodes: EpisodeSummary[];
+};
+
+export type EpisodeDetail = EpisodeSummary & {
   preface: string | null;
   body: string | null;
   afterword: string | null;
+  charCount: number | null;
+  /** 取得済みの挿絵。URL から data URL へ */
+  images: Record<string, string>;
 };
 
-export type Chapter = {
-  /** 章の名前。章に分かれていない話は null */
-  title: string | null;
-  episodes: Episode[];
+export type LatestEpisode = {
+  novelId: number;
+  site: SourceName;
+  siteId: string;
+  novelUrl: string;
+  novelTitle: string;
+  episode: EpisodeSummary;
 };
 
-export type Novel = {
-  id: number;
-  sourceName: SourceName;
-  /** サイトの上での作品 ID */
-  sourceId: string;
-  url: string;
-  title: string;
-  author: Author;
-  description: string;
-  /** 最新話の公開日時（ISO 8601） */
-  episodeUpdatedAt: string;
-  characterCount: number;
-  isConcluded: boolean;
-  chapters: Chapter[];
-};
-
-/** 購読しているが、まだ追加していない作品 */
+/** 購読しているが、まだ作品として追加していない作品 */
 export type UnaddedNovel = {
-  sourceName: SourceName;
-  sourceId: string;
+  site: SourceName;
+  siteId: string;
   url: string;
 };
 
-export function uniqueId(item: { sourceName: SourceName; sourceId: string }): string {
-  return `${item.sourceName}-${item.sourceId}`;
-}
-
-export function episodesOf(novel: Novel): Episode[] {
-  return novel.chapters.flatMap((chapter) => chapter.episodes);
-}
-
-export type Parts = { fetched: number; total: number };
-
-export function partsOf(novel: Novel): Parts {
-  const episodes = episodesOf(novel);
-  return {
-    fetched: episodes.filter((episode) => episode.bodyFetched).length,
-    total: episodes.length,
-  };
+export function uniqueId(item: { site: SourceName; siteId: string }): string {
+  return `${item.site}-${item.siteId}`;
 }

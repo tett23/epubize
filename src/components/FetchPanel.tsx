@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { fetchAll, fetchStatus, onFetchDone, type FetchDone, type FetchStatus } from "../data";
-import { Button, ButtonGroup, PendingButton } from "./ui";
+import { fetchAll, fetchAllMetadata, fetchStatus, onFetchDone, type FetchDone, type FetchStatus } from "../data";
+import { Button, ButtonGroup } from "./ui";
 
 /** 画面に残す取得の結果の数 */
 const MAX_RESULTS = 20;
@@ -10,7 +10,7 @@ const POLL_MS = 1000;
 
 type Message = { kind: "info" | "error"; text: string };
 
-/** fetch all と、取得のキューの状態（ADR 0015、ADR 0016） */
+/** fetch all と fetch all metadata、取得のキューの状態（ADR 0015、ADR 0016、ADR 0018） */
 export function FetchPanel() {
   const [status, setStatus] = useState<FetchStatus | null>(null);
   const [message, setMessage] = useState<Message | null>(null);
@@ -30,10 +30,10 @@ export function FetchPanel() {
     };
   }, []);
 
-  const onClick = async () => {
+  const run = (start: () => Promise<number>, what: string) => async () => {
     try {
-      const count = await fetchAll();
-      setMessage({ kind: "info", text: `キューを空にして、${count} 作品の目次の取得を積みました` });
+      const count = await start();
+      setMessage({ kind: "info", text: `キューを空にして、${count} 作品の${what}の取得を積みました` });
       setStatus(await fetchStatus());
     } catch (err) {
       setMessage({ kind: "error", text: String(err) });
@@ -44,14 +44,16 @@ export function FetchPanel() {
     <section className="space-y-2">
       <div className="flex flex-wrap items-center gap-4">
         <ButtonGroup>
-          <Button onClick={onClick} disabled={status?.configured === false}>
+          <Button onClick={run(fetchAll, "目次、本文、挿絵")} disabled={status?.configured === false}>
             fetch all
           </Button>
-          <PendingButton>fetch all metadata</PendingButton>
+          <Button onClick={run(fetchAllMetadata, "目次")} disabled={status?.configured === false}>
+            fetch all metadata
+          </Button>
         </ButtonGroup>
         {status && (
           <span className="text-sm text-neutral-600 dark:text-neutral-400">
-            {status.configured ? `キュー: ${status.queued} 件` : "クローラーが指定されていません（EPUBIZE_CRAWLER）"}
+            {status.configured ? `キュー: ${status.queued} 件` : "クローラーが見つかりません（PATH の novel-crawler）"}
           </span>
         )}
       </div>

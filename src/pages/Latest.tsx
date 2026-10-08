@@ -1,15 +1,28 @@
 import { Fragment } from "react";
-import { EpisodeTitle, NovelSiteLink, novelPath } from "../components/links";
-import { ButtonGroup, InternalLink, PendingButton, SentMark } from "../components/ui";
-import { listNovels } from "../data";
+import { ExternalLink } from "../components/ExternalLink";
+import { EpisodeTitle, novelPath } from "../components/links";
+import { ActionButton, ButtonGroup, InternalLink, PendingButton, SentMark } from "../components/ui";
+import { latestEpisodes, refetchEpisode } from "../data";
+import { useLoad } from "../hooks";
 import { formatDateTime } from "../lib/format";
-import { latestEpisodes } from "../lib/library";
+import { groupByDate } from "../lib/library";
 import { uniqueId } from "../models";
+import { LoadError } from "./Root";
 
 const LIMIT = 100;
 
 export function Latest() {
-  const groups = latestEpisodes(listNovels(), LIMIT);
+  const { data, error } = useLoad(() => latestEpisodes(LIMIT), []);
+  if (error) {
+    return <LoadError error={error} />;
+  }
+  if (data == null) {
+    return null;
+  }
+  const groups = groupByDate(data);
+  if (groups.length === 0) {
+    return <p className="text-sm text-neutral-600 dark:text-neutral-400">話はまだありません。</p>;
+  }
 
   return (
     <table className="w-full border-collapse">
@@ -21,29 +34,31 @@ export function Latest() {
                 {group.date}
               </th>
             </tr>
-            {group.items.map(({ novel, episode }) => (
+            {group.items.map((item) => (
               <tr
-                key={episode.id}
+                key={item.episode.id}
                 className="border-t border-neutral-200 align-top hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
               >
-                <td className="py-2 pr-4 whitespace-nowrap tabular-nums">{formatDateTime(episode.originCreatedAt)}</td>
+                <td className="py-2 pr-4 whitespace-nowrap tabular-nums">
+                  {item.episode.publishedAt && formatDateTime(item.episode.publishedAt)}
+                </td>
                 <td className="py-2 pr-4 whitespace-nowrap">
-                  <NovelSiteLink novel={novel}>{uniqueId(novel)}</NovelSiteLink>
+                  <ExternalLink href={item.novelUrl}>{uniqueId(item)}</ExternalLink>
                 </td>
                 <td className="max-w-[16rem] py-2 pr-4">
-                  <InternalLink to={novelPath(novel)}>{novel.title.slice(0, 20)}</InternalLink>
+                  <InternalLink to={novelPath(item.novelId)}>{item.novelTitle.slice(0, 20)}</InternalLink>
                 </td>
                 <td className="py-2 pr-4">
-                  <EpisodeTitle episode={episode}>
-                    {episode.part}　{episode.title}
+                  <EpisodeTitle episode={item.episode}>
+                    {item.episode.no}　{item.episode.title}
                   </EpisodeTitle>
                 </td>
                 <td className="py-2">
                   <div className="flex items-center justify-end gap-2">
-                    {episode.isSent && <SentMark />}
+                    {item.episode.sentAt && <SentMark />}
                     <ButtonGroup>
-                      <PendingButton>refetch</PendingButton>
-                      {episode.bodyFetched && <PendingButton>send to Kindle</PendingButton>}
+                      <ActionButton action={() => refetchEpisode(item.episode.id)}>refetch</ActionButton>
+                      {item.episode.bodyFetchedAt && <PendingButton>send to Kindle</PendingButton>}
                     </ButtonGroup>
                   </div>
                 </td>

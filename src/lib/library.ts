@@ -1,4 +1,4 @@
-import { episodesOf, partsOf, type Episode, type Novel } from "../models";
+import type { EpisodeSummary, LatestEpisode, NovelSummary } from "../models";
 import { formatDate } from "./format";
 
 /** 1 回の取得にかかる秒数の目安。取得の間隔（ADR 0015）に揃える */
@@ -16,10 +16,9 @@ export type LibraryStats = {
   unfetchedMinutes: number;
 };
 
-export function libraryStats(novels: Novel[]): LibraryStats {
-  const parts = novels.map(partsOf);
-  const total = parts.reduce((acc, p) => acc + p.total, 0);
-  const fetched = parts.reduce((acc, p) => acc + p.fetched, 0);
+export function libraryStats(novels: NovelSummary[]): LibraryStats {
+  const total = novels.reduce((acc, n) => acc + n.total, 0);
+  const fetched = novels.reduce((acc, n) => acc + n.fetched, 0);
   const unfetched = total - fetched;
 
   return {
@@ -32,25 +31,16 @@ export function libraryStats(novels: Novel[]): LibraryStats {
   };
 }
 
-/** 最新話の新しい順 */
-export function sortNovels(novels: Novel[]): Novel[] {
-  return [...novels].sort((a, b) => b.episodeUpdatedAt.localeCompare(a.episodeUpdatedAt));
-}
-
-export type LatestEpisode = { novel: Novel; episode: Episode };
-
 export type LatestGroup = { date: string; items: LatestEpisode[] };
 
-/** 全作品の話を公開日時の新しい順に並べ、公開日ごとにまとめる */
-export function latestEpisodes(novels: Novel[], limit: number): LatestGroup[] {
-  const items = novels
-    .flatMap((novel) => episodesOf(novel).map((episode) => ({ novel, episode })))
-    .sort((a, b) => b.episode.originCreatedAt.localeCompare(a.episode.originCreatedAt))
-    .slice(0, limit);
-
+/** 公開日時の新しい順に並んだ話を、公開日（ローカル時刻）ごとにまとめる */
+export function groupByDate(items: LatestEpisode[]): LatestGroup[] {
   const groups: LatestGroup[] = [];
   for (const item of items) {
-    const date = formatDate(item.episode.originCreatedAt);
+    if (item.episode.publishedAt == null) {
+      continue;
+    }
+    const date = formatDate(item.episode.publishedAt);
     const last = groups.at(-1);
     if (last?.date === date) {
       last.items.push(item);
@@ -61,14 +51,29 @@ export function latestEpisodes(novels: Novel[], limit: number): LatestGroup[] {
   return groups;
 }
 
-/** 前後の話。話数で探し、ない場合は null */
+export type Chapter = { title: string | null; episodes: EpisodeSummary[] };
+
+/** 目次の順に並んだ話を、続く話で章の名前が同じものごとにまとめる */
+export function groupChapters(episodes: EpisodeSummary[]): Chapter[] {
+  const chapters: Chapter[] = [];
+  for (const episode of episodes) {
+    const last = chapters.at(-1);
+    if (last != null && last.title === episode.chapter) {
+      last.episodes.push(episode);
+    } else {
+      chapters.push({ title: episode.chapter, episodes: [episode] });
+    }
+  }
+  return chapters;
+}
+
+/** 前後の話。目次の位置で探し、ない場合は null */
 export function adjacentEpisodes(
-  novel: Novel,
-  part: number,
-): { prev: Episode | null; next: Episode | null } {
-  const episodes = episodesOf(novel);
+  episodes: EpisodeSummary[],
+  no: number,
+): { prev: EpisodeSummary | null; next: EpisodeSummary | null } {
   return {
-    prev: episodes.find((episode) => episode.part === part - 1) ?? null,
-    next: episodes.find((episode) => episode.part === part + 1) ?? null,
+    prev: episodes.find((episode) => episode.no === no - 1) ?? null,
+    next: episodes.find((episode) => episode.no === no + 1) ?? null,
   };
 }

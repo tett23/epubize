@@ -32,4 +32,13 @@ describe("renderMarkdown", () => {
     expect(html).not.toContain("<script");
     expect(html).not.toContain("onerror");
   });
+
+  it("取得済みの挿絵を data URL に差し替え、取得していない挿絵は読みに行かない", () => {
+    const html = renderMarkdown("![地図](https://example.com/a.png)\n\n![図](https://example.com/b.png)", {
+      "https://example.com/a.png": "data:image/png;base64,AA==",
+    });
+    expect(html).toContain('<img src="data:image/png;base64,AA==" alt="地図">');
+    expect(html).toContain('<img alt="図">');
+    expect(html).not.toContain("https://example.com/b.png");
+  });
 });
