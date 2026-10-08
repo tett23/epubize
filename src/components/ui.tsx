@@ -12,6 +12,23 @@ export function InternalLink({ to, children }: { to: string; children: ReactNode
   );
 }
 
+/**
+ * ボタンの見た目。ホバーで背景と枠をはっきり濃くし、押した瞬間はさらに濃くする。
+ * キーボードで選んだときは枠を出す。押せないときはホバーしても変わらない
+ */
+const buttonClass = [
+  "cursor-pointer rounded border px-2.5 py-1 text-sm transition-colors duration-100",
+  "border-neutral-300 bg-white text-neutral-800 shadow-sm",
+  "hover:border-neutral-500 hover:bg-neutral-200 hover:text-neutral-950",
+  "active:bg-neutral-300",
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600",
+  "dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-100",
+  "dark:hover:border-neutral-400 dark:hover:bg-neutral-600 dark:hover:text-white dark:active:bg-neutral-500",
+  "disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none",
+  "disabled:hover:border-neutral-300 disabled:hover:bg-white disabled:hover:text-neutral-800",
+  "dark:disabled:hover:border-neutral-600 dark:disabled:hover:bg-neutral-800 dark:disabled:hover:text-neutral-100",
+].join(" ");
+
 export function Button({
   type = "button",
   disabled = false,
@@ -31,7 +48,7 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className="rounded border border-neutral-300 bg-neutral-50 px-2.5 py-1 text-sm text-neutral-700 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-neutral-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+      className={buttonClass}
     >
       {children}
     </button>
