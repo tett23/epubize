@@ -39,6 +39,12 @@ pub struct Settings {
     pub crawler_path: Option<String>,
     /// epub-builder の実行ファイル。null なら自動で探す（ADR 0021、ADR 0024）
     pub epub_builder_path: Option<String>,
+    /// send-to-kindle の実行ファイル。null なら自動で探す（ADR 0027）
+    pub send_to_kindle_path: Option<String>,
+    /// send-to-kindle に -e で渡す .env。null ならアプリ用データ領域の .env（ADR 0028）
+    pub send_to_kindle_env_path: Option<String>,
+    /// .env に要るキーを並べた .env.example。null ならアプリ用データ領域の .env.example（ADR 0028）
+    pub send_to_kindle_env_example_path: Option<String>,
     /// 定期取得（ADR 0019）
     pub schedule: ScheduleSettings,
 }
@@ -50,6 +56,12 @@ impl Settings {
             .map_err(|_| format!("時刻は HH:MM で指定してください: {:?}", self.schedule.at))?;
         validate_executable("クローラー", self.crawler_path.as_deref())?;
         validate_executable("epub-builder ", self.epub_builder_path.as_deref())?;
+        validate_executable("send-to-kindle ", self.send_to_kindle_path.as_deref())?;
+        validate_env_file(".env", self.send_to_kindle_env_path.as_deref())?;
+        validate_env_file(
+            ".env.example",
+            self.send_to_kindle_env_example_path.as_deref(),
+        )?;
         Ok(Schedule {
             enabled: self.schedule.enabled,
             at,
@@ -71,6 +83,22 @@ fn validate_executable(label: &str, path: Option<&str>) -> Result<(), String> {
         return Err(format!(
             "{label}の実行ファイルが見つからないか、実行できません: {path}"
         ));
+    }
+    Ok(())
+}
+
+/// send-to-kindle の .env と .env.example の指定が、空でなく、ファイルとしてあるか。未指定なら確かめない
+fn validate_env_file(name: &str, path: Option<&str>) -> Result<(), String> {
+    let Some(path) = path else {
+        return Ok(());
+    };
+    if path.trim().is_empty() {
+        return Err(format!(
+            "send-to-kindle の {name} が空です。使わないときは空欄ではなく未指定にしてください"
+        ));
+    }
+    if !Path::new(path).is_file() {
+        return Err(format!("send-to-kindle の {name} が見つかりません: {path}"));
     }
     Ok(())
 }
@@ -128,6 +156,12 @@ mod tests {
         path.to_string_lossy().into_owned()
     }
 
+    fn env_file(dir: &Path, name: &str) -> String {
+        let path = dir.join(name);
+        fs::write(&path, "EMAIL=\n").unwrap();
+        path.to_string_lossy().into_owned()
+    }
+
     #[test]
     fn defaults_when_file_is_missing() {
         let dir = tempfile::tempdir().unwrap();
@@ -160,7 +194,11 @@ mod tests {
 
         let second = Settings {
             crawler_path: Some(crawler.clone()),
-            epub_builder_path: Some(crawler),
+            epub_builder_path: Some(crawler.clone()),
+            send_to_kindle_path: Some(crawler),
+            // send-to-kindle に -e で渡すため、名前は .env でなくてよい
+            send_to_kindle_env_path: Some(env_file(dir.path(), "kindle.env")),
+            send_to_kindle_env_example_path: Some(env_file(dir.path(), ".env.example")),
             schedule: ScheduleSettings {
                 enabled: false,
                 at: "04:30".into(),
@@ -206,6 +244,27 @@ mod tests {
             },
             Settings {
                 epub_builder_path: Some("/nonexistent/epub-builder".into()),
+                ..Settings::default()
+            },
+            Settings {
+                send_to_kindle_path: Some("/nonexistent/send-to-kindle".into()),
+                ..Settings::default()
+            },
+            Settings {
+                send_to_kindle_env_path: Some("/nonexistent/.env".into()),
+                ..Settings::default()
+            },
+            Settings {
+                send_to_kindle_env_path: Some(" ".into()),
+                ..Settings::default()
+            },
+            Settings {
+                send_to_kindle_env_example_path: Some("/nonexistent/.env.example".into()),
+                ..Settings::default()
+            },
+            Settings {
+                // ディレクトリはファイルではない
+                send_to_kindle_env_example_path: Some(dir.path().to_string_lossy().into_owned()),
                 ..Settings::default()
             },
         ] {

@@ -203,11 +203,27 @@ async fn shows_and_saves_settings() {
     assert_eq!(view.load_error, None);
     assert_eq!(view.environment, "development");
     assert!(view.settings_path.ends_with("settings.json"));
+    assert_eq!(
+        view.send_to_kindle_env_default,
+        dir.path().join(".env").to_string_lossy()
+    );
+    assert_eq!(
+        view.send_to_kindle_env_example_default,
+        dir.path().join(".env.example").to_string_lossy()
+    );
+    assert_eq!(view.send_to_kindle_env_check, None);
 
     let crawler = executable(dir.path());
+    let env = dir.path().join(".env");
+    let example = dir.path().join(".env.example");
+    std::fs::write(&env, "EMAIL=a@example.com\n").unwrap();
+    std::fs::write(&example, "EMAIL=\nSMTP_PASSWORD=\n").unwrap();
     let settings = Settings {
         crawler_path: Some(crawler.clone()),
         epub_builder_path: Some(crawler.clone()),
+        send_to_kindle_path: Some(crawler.clone()),
+        send_to_kindle_env_path: Some(env.to_string_lossy().into_owned()),
+        send_to_kindle_env_example_path: Some(example.to_string_lossy().into_owned()),
         schedule: crate::settings::ScheduleSettings {
             enabled: true,
             at: "05:15".into(),
@@ -223,6 +239,16 @@ async fn shows_and_saves_settings() {
     assert_eq!(view.settings, settings);
     assert_eq!(view.crawler_in_use.as_deref(), Some(crawler.as_str()));
     assert_eq!(view.epub_builder_in_use.as_deref(), Some(crawler.as_str()));
+    assert_eq!(
+        view.send_to_kindle_in_use.as_deref(),
+        Some(crawler.as_str())
+    );
+    assert_eq!(
+        view.send_to_kindle_env_check,
+        Some(crate::kindle::EnvCheck::Missing {
+            keys: vec!["SMTP_PASSWORD".into()]
+        })
+    );
 }
 
 #[tokio::test]

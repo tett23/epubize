@@ -3,6 +3,7 @@ import { ExternalLink } from "../components/ExternalLink";
 import { novelPath } from "../components/links";
 import { ActionButton, Button, InternalLink } from "../components/ui";
 import {
+  type EnvCheck,
   getSettings,
   listNovels,
   listSubscriptions,
@@ -92,6 +93,9 @@ const inputClass =
 function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => void }) {
   const [crawlerPath, setCrawlerPath] = useState(view.settings.crawlerPath ?? "");
   const [epubBuilderPath, setEpubBuilderPath] = useState(view.settings.epubBuilderPath ?? "");
+  const [sendToKindlePath, setSendToKindlePath] = useState(view.settings.sendToKindlePath ?? "");
+  const [envPath, setEnvPath] = useState(view.settings.sendToKindleEnvPath ?? "");
+  const [envExamplePath, setEnvExamplePath] = useState(view.settings.sendToKindleEnvExamplePath ?? "");
   const [enabled, setEnabled] = useState(view.settings.schedule.enabled);
   const [at, setAt] = useState(view.settings.schedule.at);
   const [saving, setSaving] = useState(false);
@@ -100,6 +104,9 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
   useEffect(() => {
     setCrawlerPath(view.settings.crawlerPath ?? "");
     setEpubBuilderPath(view.settings.epubBuilderPath ?? "");
+    setSendToKindlePath(view.settings.sendToKindlePath ?? "");
+    setEnvPath(view.settings.sendToKindleEnvPath ?? "");
+    setEnvExamplePath(view.settings.sendToKindleEnvExamplePath ?? "");
     setEnabled(view.settings.schedule.enabled);
     setAt(view.settings.schedule.at);
   }, [view]);
@@ -111,6 +118,9 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
       await saveSettings({
         crawlerPath: crawlerPath.trim() === "" ? null : crawlerPath.trim(),
         epubBuilderPath: epubBuilderPath.trim() === "" ? null : epubBuilderPath.trim(),
+        sendToKindlePath: sendToKindlePath.trim() === "" ? null : sendToKindlePath.trim(),
+        sendToKindleEnvPath: envPath.trim() === "" ? null : envPath.trim(),
+        sendToKindleEnvExamplePath: envExamplePath.trim() === "" ? null : envExamplePath.trim(),
         schedule: { enabled, at },
       });
       setMessage({ kind: "info", text: "保存しました" });
@@ -149,6 +159,37 @@ function SettingsForm({ view, onSaved }: { view: SettingsView; onSaved: () => vo
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
           EPUB を作るときに子プロセスとして起動します。EPUB の生成はまだ実装していません。
         </p>
+      </Section>
+      <Section title="send-to-kindle">
+        <ExecutableField
+          name="send-to-kindle "
+          value={sendToKindlePath}
+          onChange={setSendToKindlePath}
+          inUse={view.sendToKindleInUse}
+          found={view.sendToKindleFound}
+        />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          Kindle に EPUB を送るときに子プロセスとして起動します。Kindle への送信はまだ実装していません。
+        </p>
+        <FileField
+          name=".env"
+          value={envPath}
+          onChange={setEnvPath}
+          inUse={view.settings.sendToKindleEnvPath ?? view.sendToKindleEnvDefault}
+          defaultPath={view.sendToKindleEnvDefault}
+        />
+        <FileField
+          name=".env.example"
+          value={envExamplePath}
+          onChange={setEnvExamplePath}
+          inUse={view.settings.sendToKindleEnvExamplePath ?? view.sendToKindleEnvExampleDefault}
+          defaultPath={view.sendToKindleEnvExampleDefault}
+        />
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          空欄ならデータの置き場所のものを使います。.env は send-to-kindle に -e で渡します。.env.example
+          があれば、そのキーが .env にあるかを調べます。値は表示しません。
+        </p>
+        <EnvCheckResult check={view.sendToKindleEnvCheck} />
       </Section>
       <Section title="定期取得">
         <label className="flex items-center gap-2">
@@ -221,6 +262,62 @@ function ExecutableField({
         <dd className="break-all">{found ?? "見つかりません"}</dd>
       </dl>
     </>
+  );
+}
+
+/** send-to-kindle の設定のファイルの指定。空欄なら既定の場所を使う。保存した設定で使うものを出す */
+function FileField({
+  name,
+  value,
+  onChange,
+  inUse,
+  defaultPath,
+}: {
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  inUse: string;
+  defaultPath: string;
+}) {
+  return (
+    <>
+      <label className="block space-y-1">
+        <span className="text-sm">{name}</span>
+        <input
+          type="text"
+          aria-label={`send-to-kindle の ${name}`}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={defaultPath}
+          className={`w-full ${inputClass}`}
+        />
+      </label>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm text-neutral-600 dark:text-neutral-400">
+        <dt>使用中</dt>
+        <dd className="break-all">{inUse}</dd>
+      </dl>
+    </>
+  );
+}
+
+/** .env.example と比べた .env の状態。保存した設定について出す */
+function EnvCheckResult({ check }: { check: EnvCheck | null }) {
+  if (check == null) {
+    return null;
+  }
+  const [ok, text] =
+    check.kind === "complete"
+      ? [true, ".env に .env.example のキーがすべてあります"]
+      : check.kind === "missing"
+        ? [false, `.env に足りないキー: ${check.keys.join(", ")}`]
+        : [false, check.error];
+  return (
+    <p
+      data-testid="env-check"
+      className={`text-sm break-all ${ok ? "text-neutral-600 dark:text-neutral-400" : "text-red-600 dark:text-red-400"}`}
+    >
+      {text}
+    </p>
   );
 }
 

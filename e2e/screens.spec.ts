@@ -264,3 +264,105 @@ test.describe("話ごとの EPUB と送信", () => {
     await expect(page.getByRole("button", { name: /mobi/ })).toHaveCount(0);
   });
 });
+
+test.describe("管理画面の send-to-kindle", () => {
+  test("見つからなければそう出し、指定して保存すると使用中に出す", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    const section = page.locator("section").filter({ hasText: "Kindle に EPUB を送るときに" });
+    await expect(section.getByText("見つかりません")).toHaveCount(2);
+
+    await page.getByLabel("send-to-kindle の実行ファイル").fill("/usr/local/bin/send-to-kindle");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByRole("status")).toHaveText("保存しました");
+    await expect(section.getByText("/usr/local/bin/send-to-kindle")).toBeVisible();
+    const saved = await page.evaluate(
+      () =>
+        (window as unknown as { __epubize: { state: { settings: { sendToKindlePath: string | null } } } }).__epubize
+          .state.settings.sendToKindlePath,
+    );
+    expect(saved).toBe("/usr/local/bin/send-to-kindle");
+  });
+
+  test("実行できないパスは保存しない", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    await page.getByLabel("send-to-kindle の実行ファイル").fill("/nonexistent/send-to-kindle");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByRole("alert")).toContainText(
+      "send-to-kindle の実行ファイルが見つからないか、実行できません",
+    );
+  });
+
+  test("既定ではデータの置き場所の .env を使い、足りないキーを出す", async ({ page }) => {
+    await installBackend(page, { ...defaultState(), missingEnvKeys: ["SMTP_PASSWORD", "SEND_TO_KINDLE_EMAIL"] });
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    await expect(page.getByLabel("send-to-kindle の .env", { exact: true })).toHaveAttribute(
+      "placeholder",
+      "/tmp/epubize/.env",
+    );
+    await expect(page.getByLabel("send-to-kindle の .env.example")).toHaveAttribute(
+      "placeholder",
+      "/tmp/epubize/.env.example",
+    );
+    await expect(page.getByTestId("env-check")).toHaveText(".env に足りないキー: SMTP_PASSWORD, SEND_TO_KINDLE_EMAIL");
+  });
+
+  test(".env.example がなければ検査の結果を出さない", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    await expect(page.getByLabel("send-to-kindle の .env.example")).toBeVisible();
+    await expect(page.getByTestId("env-check")).toHaveCount(0);
+  });
+
+  test(".env と .env.example を指定して保存すると、使用中に出す", async ({ page }) => {
+    await installBackend(page, { ...defaultState(), missingEnvKeys: [] });
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    const section = page.locator("section").filter({ hasText: "Kindle に EPUB を送るときに" });
+    await expect(section.getByText("/tmp/epubize/.env", { exact: true })).toBeVisible();
+
+    await page.getByLabel("send-to-kindle の .env", { exact: true }).fill("/usr/local/etc/send-to-kindle/.env");
+    await page.getByLabel("send-to-kindle の .env.example").fill("/usr/local/etc/send-to-kindle/.env.example");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByRole("status")).toHaveText("保存しました");
+    await expect(section.getByText("/usr/local/etc/send-to-kindle/.env", { exact: true })).toBeVisible();
+    await expect(section.getByText("/usr/local/etc/send-to-kindle/.env.example", { exact: true })).toBeVisible();
+    await expect(page.getByTestId("env-check")).toHaveText(".env に .env.example のキーがすべてあります");
+    const saved = await page.evaluate(
+      () =>
+        (
+          window as unknown as {
+            __epubize: {
+              state: { settings: { sendToKindleEnvPath: string | null; sendToKindleEnvExamplePath: string | null } };
+            };
+          }
+        ).__epubize.state.settings,
+    );
+    expect(saved.sendToKindleEnvPath).toBe("/usr/local/etc/send-to-kindle/.env");
+    expect(saved.sendToKindleEnvExamplePath).toBe("/usr/local/etc/send-to-kindle/.env.example");
+  });
+
+  test("見つからない .env は保存しない", async ({ page }) => {
+    await installBackend(page);
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    await page.getByLabel("send-to-kindle の .env", { exact: true }).fill("/nonexistent/.env");
+    await page.getByRole("button", { name: "保存" }).click();
+    await expect(page.getByRole("alert")).toContainText("send-to-kindle の .env が見つかりません");
+  });
+
+  test("自動で見つかるものがあれば、欄の案内に出す", async ({ page }) => {
+    await installBackend(page, { ...defaultState(), sendToKindleFound: "/usr/local/bin/send-to-kindle" });
+    await page.goto("/");
+    await page.getByRole("link", { name: "settings" }).click();
+    await expect(page.getByLabel("send-to-kindle の実行ファイル")).toHaveAttribute(
+      "placeholder",
+      "/usr/local/bin/send-to-kindle",
+    );
+  });
+});

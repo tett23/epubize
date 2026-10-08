@@ -231,6 +231,16 @@ pub struct SettingsView {
     epub_builder_in_use: Option<String>,
     /// epub-builder を指定しなかったときに自動で見つかるもの
     epub_builder_found: Option<String>,
+    /// いま使う send-to-kindle の実行ファイル。見つからなければ null（ADR 0027）
+    send_to_kindle_in_use: Option<String>,
+    /// send-to-kindle を指定しなかったときに自動で見つかるもの
+    send_to_kindle_found: Option<String>,
+    /// .env を指定しなかったときに使うもの（ADR 0028）
+    send_to_kindle_env_default: String,
+    /// .env.example を指定しなかったときに使うもの
+    send_to_kindle_env_example_default: String,
+    /// .env.example と比べた .env の状態。.env.example がなければ null
+    send_to_kindle_env_check: Option<crate::kindle::EnvCheck>,
     environment: String,
     subscriptions_path: String,
     settings_path: String,
@@ -245,11 +255,21 @@ pub fn get_settings(paths: State<'_, Paths>) -> SettingsView {
         Err(e) => (Settings::default(), Some(e)),
     };
     let path = |p: &std::path::Path| p.to_string_lossy().into_owned();
+    // 環境ごとのアプリ用データ領域。データベースと同じディレクトリ
+    let data_dir = paths.database.parent().unwrap_or(std::path::Path::new(""));
     SettingsView {
         crawler_in_use: crawler(&settings).map(|c| path(c.program())),
         crawler_found: ProcessCrawler::find().map(|c| path(c.program())),
         epub_builder_in_use: crate::epub::epub_builder(&settings).map(|p| path(&p)),
         epub_builder_found: crate::epub::find().map(|p| path(&p)),
+        send_to_kindle_in_use: crate::kindle::send_to_kindle(&settings).map(|p| path(&p)),
+        send_to_kindle_found: crate::kindle::find().map(|p| path(&p)),
+        send_to_kindle_env_default: path(&crate::kindle::env_path(&Settings::default(), data_dir)),
+        send_to_kindle_env_example_default: path(&crate::kindle::env_example_path(
+            &Settings::default(),
+            data_dir,
+        )),
+        send_to_kindle_env_check: crate::kindle::check_env(&settings, data_dir),
         settings,
         load_error,
         environment: paths.env.to_string(),
@@ -314,6 +334,9 @@ mod tests {
         let settings = Settings {
             crawler_path: Some(executable(dir.path())),
             epub_builder_path: None,
+            send_to_kindle_path: None,
+            send_to_kindle_env_path: None,
+            send_to_kindle_env_example_path: None,
             schedule: ScheduleSettings {
                 enabled: false,
                 at: "04:30".into(),

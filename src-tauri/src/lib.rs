@@ -3,6 +3,7 @@ pub mod db;
 pub mod environment;
 pub mod epub;
 pub mod fetch;
+pub mod kindle;
 pub mod library;
 pub mod pipeline;
 pub mod schedule;

@@ -34,9 +34,15 @@ type Episode = {
 export type BackendState = {
   crawlerFound: string | null;
   epubBuilderFound?: string | null;
+  sendToKindleFound?: string | null;
+  /** .env.example にあって .env にないキー。未定義なら .env.example がないとする */
+  missingEnvKeys?: string[];
   settings: {
     crawlerPath: string | null;
     epubBuilderPath?: string | null;
+    sendToKindlePath?: string | null;
+    sendToKindleEnvPath?: string | null;
+    sendToKindleEnvExamplePath?: string | null;
     schedule: { enabled: boolean; at: string };
   };
   subscriptions: { site: string; id: string; url: string }[];
@@ -140,6 +146,16 @@ export async function installBackend(page: Page, state: BackendState = defaultSt
         crawlerFound: state.crawlerFound,
         epubBuilderInUse: state.settings.epubBuilderPath ?? state.epubBuilderFound ?? null,
         epubBuilderFound: state.epubBuilderFound ?? null,
+        sendToKindleInUse: state.settings.sendToKindlePath ?? state.sendToKindleFound ?? null,
+        sendToKindleFound: state.sendToKindleFound ?? null,
+        sendToKindleEnvDefault: "/tmp/epubize/.env",
+        sendToKindleEnvExampleDefault: "/tmp/epubize/.env.example",
+        sendToKindleEnvCheck:
+          state.missingEnvKeys == null
+            ? null
+            : state.missingEnvKeys.length === 0
+              ? { kind: "complete" }
+              : { kind: "missing", keys: state.missingEnvKeys },
         environment: "development",
         subscriptionsPath: "/tmp/epubize/novels.json",
         settingsPath: "/tmp/epubize/settings.json",
@@ -153,6 +169,12 @@ export async function installBackend(page: Page, state: BackendState = defaultSt
         }
         if (next.epubBuilderPath != null && !next.epubBuilderPath.startsWith("/usr/")) {
           fail(`epub-builder の実行ファイルが見つからないか、実行できません: ${next.epubBuilderPath}`);
+        }
+        if (next.sendToKindlePath != null && !next.sendToKindlePath.startsWith("/usr/")) {
+          fail(`send-to-kindle の実行ファイルが見つからないか、実行できません: ${next.sendToKindlePath}`);
+        }
+        if (next.sendToKindleEnvPath != null && !next.sendToKindleEnvPath.startsWith("/usr/")) {
+          fail(`send-to-kindle の .env が見つかりません: ${next.sendToKindleEnvPath}`);
         }
         state.settings = next;
         return null;

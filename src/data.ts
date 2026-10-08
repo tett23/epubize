@@ -141,8 +141,20 @@ export type Settings = {
   crawlerPath: string | null;
   /** epub-builder の実行ファイル。null なら自動で探す（ADR 0024） */
   epubBuilderPath: string | null;
+  /** send-to-kindle の実行ファイル。null なら自動で探す（ADR 0027） */
+  sendToKindlePath: string | null;
+  /** send-to-kindle に -e で渡す .env。null ならアプリ用データ領域の .env（ADR 0028） */
+  sendToKindleEnvPath: string | null;
+  /** .env に要るキーを並べた .env.example（ADR 0028） */
+  sendToKindleEnvExamplePath: string | null;
   schedule: { enabled: boolean; at: string };
 };
+
+/** .env.example と比べた .env の状態。値は含まない */
+export type EnvCheck =
+  | { kind: "complete" }
+  | { kind: "missing"; keys: string[] }
+  | { kind: "unreadable"; error: string };
 
 export type SettingsView = {
   settings: Settings;
@@ -156,6 +168,16 @@ export type SettingsView = {
   epubBuilderInUse: string | null;
   /** epub-builder を指定しなかったときに自動で見つかるもの */
   epubBuilderFound: string | null;
+  /** いま使う send-to-kindle の実行ファイル */
+  sendToKindleInUse: string | null;
+  /** send-to-kindle を指定しなかったときに自動で見つかるもの */
+  sendToKindleFound: string | null;
+  /** .env を指定しなかったときに使うもの。環境ごとのアプリ用データ領域の .env（ADR 0028） */
+  sendToKindleEnvDefault: string;
+  /** .env.example を指定しなかったときに使うもの */
+  sendToKindleEnvExampleDefault: string;
+  /** .env.example と比べた .env の状態。.env.example がなければ null */
+  sendToKindleEnvCheck: EnvCheck | null;
   environment: string;
   subscriptionsPath: string;
   settingsPath: string;
