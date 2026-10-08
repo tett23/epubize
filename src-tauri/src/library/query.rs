@@ -423,6 +423,90 @@ mod tests {
         assert!(set_normalize_options(&conn, 9999, None).is_err());
     }
 
+    /// 作品を 1 つ足す。`published` は各話の公開日時（None なら公開日時のない話）
+    fn add_novel(conn: &Connection, site_id: &str, published: &[Option<&str>]) -> i64 {
+        conn.execute(
+            "INSERT INTO novels (site, site_id, url, title, author_name, description, episode_count,
+                                 metadata_fetched_at)
+             VALUES ('narou', ?1, ?2, ?1, 'a', 'd', ?3, '2026-01-01T00:00:00Z')",
+            params![site_id, format!("https://example.com/{site_id}/"), published.len() as i64],
+        )
+        .unwrap();
+        let id = conn.last_insert_rowid();
+        for (i, at) in published.iter().enumerate() {
+            conn.execute(
+                "INSERT INTO episodes (novel_id, no, url, title, published_at) VALUES (?1, ?2, ?3, 't', ?4)",
+                params![id, i as i64 + 1, format!("https://example.com/{site_id}/{}/", i + 1), at],
+            )
+            .unwrap();
+        }
+        id
+    }
+
+    fn empty_database() -> Connection {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.pragma_update(None, "foreign_keys", true).unwrap();
+        crate::db::migrate::migrate(&mut conn, crate::db::migrate::MIGRATIONS).unwrap();
+        conn
+    }
+
+    #[test]
+    fn orders_novels_by_latest_episode_and_puts_empty_ones_last() {
+        let conn = empty_database();
+        let old = add_novel(&conn, "n0001aa", &[Some("2026-01-01T00:00:00Z")]);
+        let empty = add_novel(&conn, "n0002bb", &[]);
+        let new = add_novel(
+            &conn,
+            "n0003cc",
+            &[Some("2025-12-01T00:00:00Z"), Some("2026-02-01T00:00:00Z")],
+        );
+        let unknown = add_novel(&conn, "n0004dd", &[None]);
+
+        let ids: Vec<i64> = list_novels(&conn).unwrap().iter().map(|n| n.id).collect();
+        assert_eq!(ids, [new, old, empty, unknown]);
+    }
+
+    #[test]
+    fn latest_spans_novels_skips_unknown_dates_and_limits() {
+        let conn = empty_database();
+        add_novel(
+            &conn,
+            "n0001aa",
+            &[
+                Some("2026-01-01T00:00:00Z"),
+                Some("2026-01-03T00:00:00Z"),
+                None,
+            ],
+        );
+        add_novel(&conn, "n0002bb", &[Some("2026-01-02T00:00:00Z")]);
+
+        let all = latest_episodes(&conn, 10).unwrap();
+        let dates: Vec<&str> = all
+            .iter()
+            .map(|e| e.episode.published_at.as_deref().unwrap())
+            .collect();
+        assert_eq!(
+            dates,
+            [
+                "2026-01-03T00:00:00Z",
+                "2026-01-02T00:00:00Z",
+                "2026-01-01T00:00:00Z"
+            ]
+        );
+        assert_eq!(all[1].site_id, "n0002bb");
+
+        assert_eq!(latest_episodes(&conn, 2).unwrap().len(), 2);
+    }
+
+    #[test]
+    fn returns_none_for_missing_rows() {
+        let conn = empty_database();
+        assert_eq!(episode_detail(&conn, 1).unwrap(), None);
+        assert_eq!(novel_site(&conn, 1).unwrap(), None);
+        assert_eq!(episode_url(&conn, 1).unwrap(), None);
+        assert_eq!(remove_episodes(&conn, 1).unwrap(), 0);
+    }
+
     #[test]
     fn removes_episodes_but_keeps_novel() {
         let (conn, id) = database();
