@@ -11,6 +11,20 @@ EPUB を生成し、作品を管理する部分を受け持つ。GUI は Tauri �
 
 設計上の決定とその理由は [docs/adr/](docs/adr/) に記録している。
 
+## 仕組み
+
+右の列がデータの流れで、左の Tauri のバックエンド(Rust)が点線で各段を動かす。
+取得したデータは SQLite に持ち、EPUB は epub-builder で作る。できた EPUB は、そのまま保存するか、MOBI にするか、Kindle に送る。
+
+![epubize のワークフロー](docs/architecture.svg)
+
+| 部品             | 役割                                                                                                       |
+| ---------------- | ---------------------------------------------------------------------------------------------------------- |
+| 取得のキュー     | ホスト名ごとに 5 秒ずつあけて novel-crawler を起動する。毎日決まった時刻の fetch all もここに積む          |
+| 取り込み・保存   | JSON Lines を JSON Schema で確かめて SQLite に保存し、目次から本文と挿絵の取得を積む                      |
+| 書き出し         | SQLite から本を読み、`book.toml`、話ごとの Markdown、扉・目次・奥付、スタイルシート、挿絵を一時ディレクトリに書く。download zip はこれをそのまま zip にする |
+| 送信・ダウンロード | epub-builder の EPUB を `~/Downloads` に保存する、kindlegen と striptool で MOBI にする、send-to-kindle でメールで送る |
+
 ## 使う準備
 
 macOS で、作品の取得から EPUB の書き出し、Kindle への送信までを使うための手順。
