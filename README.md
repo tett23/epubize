@@ -9,7 +9,7 @@ EPUB を生成し、作品を管理する部分を受け持つ。GUI は Tauri �
 形式は [schema/crawler-output.v1.schema.json](schema/crawler-output.v1.schema.json) と
 [ADR 0005](docs/adr/0005-crawler-data-format.md) にある。クローラーは同梱しない。
 
-設計上の決定とその理由は [docs/adr/](docs/adr/) に記録している。
+設計上の決定とその理由は [docs/adr/](docs/adr/) に、それらをまとめた現在の仕様は [docs/specifications.md](docs/specifications.md) に記録している。
 
 ## 仕組み
 
