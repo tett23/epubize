@@ -51,7 +51,7 @@ epubize は次のプログラムを子プロセスとして起動する。PATH�
 | プログラム       | 使うところ                                       | 入れ方                                                                                                |
 | ---------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | `novel-crawler`  | fetch(作品と話の取得)                            | 非公開のため別に用意する                                                                              |
-| `epub-builder`   | download epub、send to Kindle(EPUB 3.0 の生成)   | [tett23/epub-builder](https://github.com/tett23/epub-builder) を clone して `deno task install`       |
+| `epub-builder`   | download epub、send to Kindle(EPUB 3.0 の生成)   | [tett23/epub-builder](https://github.com/tett23/epub-builder) を clone して `deno task install`。ADR 0019(Kindle の `primary-writing-mode`)に対応したものを使う |
 | `send-to-kindle` | send to Kindle(メールでの送信)                   | [tett23/send-to-kindle](https://github.com/tett23/send-to-kindle) の Releases から取り出し、`~/.local/bin` などに置く(下記) |
 | `kindlegen`      | download mobi(EPUB から MOBI への変換)           | Kindle Previewer の `Contents/Resources/KFXGen/bin/kindlegen` を `~/bin` などにコピーする               |
 | `striptool`      | download mobi(MOBI に埋め込まれた元の EPUB の除去) | 同じ場所の `striptool` を `~/bin` などにコピーする                                                    |

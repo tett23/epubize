@@ -303,8 +303,8 @@ assets/images/0001.png      取得済みの挿絵
 | `description`                | あらすじ。空なら書かない                                                    |
 | `page_progression_direction` | 縦書きなら `rtl`、横書きなら `ltr`                                          |
 
-epub-builder は、`page_progression_direction` が `rtl` なら、パッケージ文書に Kindle の `<meta name="primary-writing-mode" content="vertical-rl"/>` を書く（epub-builder の ADR 0019）。
-epubize の ADR 0029、ADR 0032、ADR 0033 は、epub-builder がこれを書かない前提で書かれている。
+`primary_writing_mode` は書かない。epub-builder は `page_progression_direction` から Kindle の `primary-writing-mode` を決め、パッケージ文書に `<meta name="primary-writing-mode" content="…"/>` として書く。縦書きの本は `vertical-rl`、横書きの本は `horizontal-lr` になる（ADR 0034、epub-builder の ADR 0019）。
+epub-builder の ADR 0019 に対応する前の epub-builder では、この指定のない EPUB ができる。
 
 ### 話の文書
 
@@ -381,6 +381,7 @@ epubize の ADR 0029、ADR 0032、ADR 0033 は、epub-builder がこれを書か
 - 表紙（`meta/cover`）を作ること（ADR 0031）
 - EPUBCheck を epubize から掛けること（ADR 0029）
 - Kindle に MOBI を送ること（ADR 0032）
+- `book.toml` に `primary_writing_mode` を明示して書くこと（ADR 0034）
 - Windows と Linux 向けの配布物
 
 ## 16. ADR の状態
@@ -399,4 +400,6 @@ epubize の ADR 0029、ADR 0032、ADR 0033 は、epub-builder がこれを書か
 | 0018 | クローラーの探し方を ADR 0020 で改めた。押せないボタンは ADR 0029 で実装した                               |
 | 0019 | 決め打ちの時刻を ADR 0020 で改めた                                                                          |
 | 0025 | mobi への対応をやめることを、端末に直接入れるための download mobi について ADR 0032 で改めた                |
-| 0029 | 整形の設定の removeEmptyLine を使わないことを ADR 0030 で改めた                                             |
+| 0029 | 整形の設定の removeEmptyLine を使わないことを ADR 0030 で、`primary-writing-mode` を書かないことを ADR 0034 で改めた |
+| 0032 | `primary-writing-mode` を書かないことを ADR 0034 で改めた                                                    |
+| 0033 | `primary-writing-mode` を書かないことを ADR 0034 で改めた                                                    |
