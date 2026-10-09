@@ -38,14 +38,27 @@ epubize は次のプログラムを子プロセスとして起動する。PATH�
 | ---------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | `novel-crawler`  | fetch(作品と話の取得)                            | 非公開のため別に用意する                                                                              |
 | `epub-builder`   | download epub、send to Kindle(EPUB 3.0 の生成)   | [tett23/epub-builder](https://github.com/tett23/epub-builder) を clone して `deno task install`       |
-| `send-to-kindle` | send to Kindle(メールでの送信)                   | [tett23/dotfiles](https://github.com/tett23/dotfiles) の `bin/send-to-kindle` を `~/bin` などに置く(シンボリックリンクでよい) |
+| `send-to-kindle` | send to Kindle(メールでの送信)                   | [tett23/send-to-kindle](https://github.com/tett23/send-to-kindle) の Releases から取り出し、`~/.local/bin` などに置く(下記) |
 | `kindlegen`      | download mobi(EPUB から MOBI への変換)           | Kindle Previewer の `Contents/Resources/KFXGen/bin/kindlegen` を `~/bin` などにコピーする               |
 | `striptool`      | download mobi(MOBI に埋め込まれた元の EPUB の除去) | 同じ場所の `striptool` を `~/bin` などにコピーする                                                    |
 
 kindlegen と striptool は x86_64 の実行ファイルのため、Apple Silicon では Rosetta が要る([ADR 0032](docs/adr/0032-download-mobi-with-kindlegen-and-striptool.md))。
 Send to Kindle のメールは MOBI を受け付けないため、send to Kindle は EPUB を送り、MOBI は端末に USB などで入れる。
 
-epub-builder と send-to-kindle は Deno で動く。Finder から起動したアプリはシェルの PATH を引き継がないため、
+send-to-kindle は、Releases に macOS(Apple Silicon と Intel)と Linux 向けの実行ファイルがある。
+`curl` か `gh` でダウンロードすると、macOS の検疫の対処が要らない。詳しくは send-to-kindle の README にある。
+
+```bash
+tag=v0.2.0
+target=aarch64-apple-darwin   # Intel の Mac なら x86_64-apple-darwin
+archive="send-to-kindle-$tag-$target.tar.gz"
+gh release download "$tag" --repo tett23/send-to-kindle --pattern "$archive" --pattern SHA256SUMS
+grep "$archive" SHA256SUMS | shasum -a 256 -c
+tar -xzf "$archive"
+mv "${archive%.tar.gz}/send-to-kindle" ~/.local/bin/
+```
+
+epub-builder は Deno で動く。Finder から起動したアプリはシェルの PATH を引き継がないため、
 epubize は子プロセスの PATH に [mise](https://mise.jdx.dev/) の shim(`~/.local/share/mise/shims`)を足す。
 Deno は mise で入れておく(`mise use -g deno`)。
 
@@ -68,6 +81,8 @@ chmod 600 "$dir/.env"
   `SMTP_PASSWORD` に Google アカウントの「アプリ パスワード」を書く
 
 `.env` の場所は、管理画面で変えられる。
+epubize は、指定した `.env`、または既定の場所にある `.env` を `--env-file` で渡す。どちらもなければ渡さず、
+send-to-kindle は自分の設定ファイル(`~/.config/send-to-kindle/.env`)などから読む。
 
 ### 4. 作品を購読する
 
