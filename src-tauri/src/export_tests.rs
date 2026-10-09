@@ -197,7 +197,13 @@ fn writes_book_toml_and_stylesheet() {
     );
     let css = read(dir.path().join("assets/style.css"));
     assert!(css.contains("writing-mode: vertical-rl"));
-    assert!(css.contains("p {\n  margin: 0;\n}"));
+    assert!(css.contains("p {\n  margin: 0;\n  padding: 0;\n  line-height: 1.7em;"));
+    // 行間と禁則と余白は kindlize にならう
+    assert!(css.contains("br {\n  line-height: 1.7em;\n}"));
+    assert!(css.contains("line-break: strict;"));
+    assert!(css.contains("body {\n  margin: 0 5pt;"));
+    assert!(css.contains("ruby > rt {\n  font-size: 0.33em;\n}"));
+    assert!(css.contains("@page {\n  margin-top: 5pt;\n  margin-bottom: 5pt;\n}"));
 
     // 横書きでは左から右へ送り、縦書きの指定をしない。空の作者とあらすじは書かない
     let dir = tempfile::tempdir().unwrap();
@@ -213,7 +219,8 @@ fn writes_book_toml_and_stylesheet() {
     let css = read(dir.path().join("assets/style.css"));
     assert!(!css.contains("writing-mode"));
     // 段落の余白はリーダーの既定に任せる
-    assert!(!css.contains("p {"));
+    assert!(css.contains("p {\n  padding: 0;\n  line-height: 1.7em;"));
+    assert!(css.contains("body {\n  margin: 3pt 0;"));
 }
 
 #[test]

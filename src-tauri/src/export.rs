@@ -595,16 +595,32 @@ dl.colophon dd {
 }
 ";
 
+///
+/// 行間、禁則、余白、ルビの大きさは、kindlize の EPUB のスタイルにならう（ADR 0033）
 fn stylesheet(vertical: bool, remove_empty_line: bool) -> String {
-    let mut css = String::new();
+    let mut css = String::from("@page {\n  margin-top: 5pt;\n  margin-bottom: 5pt;\n}\n");
+    css.push_str("html, body {\n");
     if vertical {
         css.push_str(
-            "html {\n  writing-mode: vertical-rl;\n  -webkit-writing-mode: vertical-rl;\n  -epub-writing-mode: vertical-rl;\n}\n",
+            "  writing-mode: vertical-rl;\n  -webkit-writing-mode: vertical-rl;\n  -epub-writing-mode: vertical-rl;\n",
         );
     }
+    css.push_str(
+        "  line-break: strict;\n  -webkit-line-break: strict;\n  -epub-line-break: strict;\n}\n",
+    );
+    let body_margin = if vertical { "0 5pt" } else { "3pt 0" };
+    let _ = write!(
+        css,
+        "body {{\n  margin: {body_margin};\n  padding: 0;\n  text-align: justify;\n}}\n"
+    );
+    css.push_str("p {\n");
     if remove_empty_line {
-        css.push_str("p {\n  margin: 0;\n}\n");
+        css.push_str("  margin: 0;\n");
     }
+    css.push_str("  padding: 0;\n  line-height: 1.7em;\n  word-break: break-all;\n}\n");
+    css.push_str("br {\n  line-height: 1.7em;\n}\n");
+    css.push_str("hr {\n  margin: 0 2em;\n}\n");
+    css.push_str("ruby > rt {\n  font-size: 0.33em;\n}\n");
     css.push_str("img {\n  max-width: 100%;\n  max-height: 100%;\n}\n");
     css.push_str(FRONT_AND_BACK_MATTER);
     css
