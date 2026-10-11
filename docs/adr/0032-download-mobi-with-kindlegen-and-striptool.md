@@ -1,6 +1,6 @@
 # ADR 0032: kindlegen と striptool で MOBI を作る download mobi を置き、送信は EPUB のままにする
 
-ステータス: 採択
+ステータス: 採択→ADR 0034
 
 ## 文脈
 

@@ -1,6 +1,6 @@
 # ADR 0029: epub-builder のプロジェクトを作って EPUB と zip を書き出し、send-to-kindle で Kindle に送る
 
-ステータス: 採択
+ステータス: 採択→ADR 0030、ADR 0034
 
 ## 文脈
 

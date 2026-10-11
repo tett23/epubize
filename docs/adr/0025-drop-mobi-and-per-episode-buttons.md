@@ -1,6 +1,6 @@
 # ADR 0025: mobi への対応をやめ、作品のページの話ごとに download epub と send to Kindle を置く
 
-ステータス: 採択
+ステータス: 採択→ADR 0029、ADR 0032
 
 ## 文脈
 
