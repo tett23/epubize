@@ -4,8 +4,8 @@
 
 ## 文脈
 
-GUI のフロントエンドは React と TypeScript で書く（ADR 0006）。
-ADR 0006 では、UI のライブラリは必要になったときに決めるとした。
+GUI のフロントエンドは React と TypeScript で書く（[ADR 0006](0006-react-typescript-pnpm-frontend.md)）。
+[ADR 0006](0006-react-typescript-pnpm-frontend.md) では、UI のライブラリは必要になったときに決めるとした。
 画面を作り始める前に、スタイルの書き方を決めておく。
 
 ## 実装すること

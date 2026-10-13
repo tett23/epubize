@@ -4,20 +4,20 @@
 
 ## 文脈
 
-mobi への対応をやめ、Kindle には EPUB を送ることにした（ADR 0025）。
-EPUB は epub-builder を子プロセスとして起動して作り（ADR 0021）、epub-builder は EPUB 2.0.1 と 3.0 のどちらかを選んで出せる。
+mobi への対応をやめ、Kindle には EPUB を送ることにした（[ADR 0025](0025-drop-mobi-and-per-episode-buttons.md)）。
+EPUB は epub-builder を子プロセスとして起動して作り（[ADR 0021](0021-epub-via-epub-builder-process.md)）、epub-builder は EPUB 2.0.1 と 3.0 のどちらかを選んで出せる。
 Kindle が受け付ける EPUB の版について、次のことを確かめた。
 
 - KDP のヘルプは「Kindle Publishing Guidelines の仕様に合う EPUB を受け付ける」とし、版を 2.0.1 に限っていない。リフロー型の本の文章のガイドラインは、ページ番号について EPUB 3 のアクセシビリティの指針に従うよう案内している
 - Send to Kindle は 2022 年から EPUB を受け付け、Amazon が Kindle 用の形式に変換してから端末に届ける
 - Kindle Publishing Guidelines の本体（PDF）は読めず、EPUB 3 のどの機能に対応するかは確かめていない
 
-epubize で作る本は日本語の縦書きの小説が主になる。右から左への頁送り（`page-progression-direction`）は EPUB 3 にしかなく、epub-builder も EPUB 2.0.1 ではこれを書かない（epub-builder の ADR 0003）。
+epubize で作る本は日本語の縦書きの小説が主になる。右から左への頁送り（`page-progression-direction`）は EPUB 3 にしかなく、epub-builder も EPUB 2.0.1 ではこれを書かない（epub-builder の [ADR 0003](0003-tauri-and-sqlite.md)）。
 
 ## 実装すること
 
 - Kindle に送る EPUB は、epub-builder に版として `3.0` を指定して作る
-- send to Kindle のボタン（ADR 0025）は、この版で作った EPUB を送る
+- send to Kindle のボタン（[ADR 0025](0025-drop-mobi-and-per-episode-buttons.md)）は、この版で作った EPUB を送る
 
 ## 実装しないこと
 

@@ -1,13 +1,13 @@
 # ADR 0029: epub-builder のプロジェクトを作って EPUB と zip を書き出し、send-to-kindle で Kindle に送る
 
-ステータス: 採択→ADR 0030、ADR 0034
+ステータス: 採択→[ADR 0030](0030-remove-empty-line-as-paragraph-margin.md)、[ADR 0034](0034-primary-writing-mode-by-epub-builder.md)
 
 ## 文脈
 
-EPUB は epub-builder を子プロセスとして起動して作る（ADR 0021）。渡すデータの形は、epub-builder のインターフェースが決まったときに決めることにしていた。
-epub-builder は、決まった形に並べたディレクトリ（`book.toml`、`body/`、`assets/`）から EPUB を作るコマンド `epub-builder build` を持つようになった（epub-builder の ADR 0014、ADR 0017）。
-Kindle への送信は send-to-kindle を子プロセスとして起動して行い（ADR 0027）、`.env` を `-e` で渡せる（ADR 0028）。Kindle に送る EPUB は 3.0 とした（ADR 0026）。
-作品のページ、話のページ、latest には、download zip、download epub、send to Kindle のボタンを押せない状態で置いていた（ADR 0011、ADR 0025）。
+EPUB は epub-builder を子プロセスとして起動して作る（[ADR 0021](0021-epub-via-epub-builder-process.md)）。渡すデータの形は、epub-builder のインターフェースが決まったときに決めることにしていた。
+epub-builder は、決まった形に並べたディレクトリ（`book.toml`、`body/`、`assets/`）から EPUB を作るコマンド `epub-builder build` を持つようになった（epub-builder の [ADR 0014](0014-subscriptions-json-and-environment-directories.md)、[ADR 0017](0017-initial-schema.md)）。
+Kindle への送信は send-to-kindle を子プロセスとして起動して行い（[ADR 0027](0027-send-to-kindle-process.md)）、`.env` を `-e` で渡せる（[ADR 0028](0028-send-to-kindle-env-files.md)）。Kindle に送る EPUB は 3.0 とした（[ADR 0026](0026-kindle-epub-version-3.md)）。
+作品のページ、話のページ、latest には、download zip、download epub、send to Kindle のボタンを押せない状態で置いていた（[ADR 0011](0011-gui-screens-after-kindlize.md)、[ADR 0025](0025-drop-mobi-and-per-episode-buttons.md)）。
 
 ## 実装すること
 
@@ -18,15 +18,15 @@ Kindle への送信は send-to-kindle を子プロセスとして起動して行
   - 話の Markdown は、画面の表示と同じく、見出しに話の題名を置き、前書き、本文、後書きを区切り線でつなぐ
   - `assets/style.css`：縦書きなら `writing-mode: vertical-rl` を書く。挿絵が頁に収まるようにする
   - `assets/images/`：取得済みの挿絵のうち、epub-builder が扱える形式（JPEG、PNG、GIF、SVG）のものを、最初に現れた順の番号で置き、本文の参照を書き換える。取得していない挿絵と扱えない形式の挿絵は、代替テキストに置き換える
-- 整形の設定（ADR 0011、ADR 0017）は、組方向だけを使う。縦書きなら頁送りを右から左（`rtl`）にし、横書きなら左から右（`ltr`）にする。ほかの項目は使わない。本文はクローラーが正規化している（ADR 0009）
-- 本文の `《` と `[^` は、epub-builder のルビと脚注の記法と取られないよう、`\` を前に置いて文字にする。ルビはクローラーが `<ruby>` にしている（ADR 0009）。題名は ASCII の記号と `《` を同じく文字にする
-- download epub：`epub-builder build <プロジェクト> --epub-version 3.0 --quiet --output <ファイル>` で EPUB 3.0 を作り、ダウンロードのディレクトリ（macOS では `~/Downloads`）に `<題名>.epub` で書く。同じ名前があれば `<題名> (2).epub` のように番号を付ける。これにより、ADR 0026 で決めなかった download epub の版を 3.0 とする
+- 整形の設定（[ADR 0011](0011-gui-screens-after-kindlize.md)、[ADR 0017](0017-initial-schema.md)）は、組方向だけを使う。縦書きなら頁送りを右から左（`rtl`）にし、横書きなら左から右（`ltr`）にする。ほかの項目は使わない。本文はクローラーが正規化している（[ADR 0009](0009-normalized-markdown-conventions.md)）
+- 本文の `《` と `[^` は、epub-builder のルビと脚注の記法と取られないよう、`\` を前に置いて文字にする。ルビはクローラーが `<ruby>` にしている（[ADR 0009](0009-normalized-markdown-conventions.md)）。題名は ASCII の記号と `《` を同じく文字にする
+- download epub：`epub-builder build <プロジェクト> --epub-version 3.0 --quiet --output <ファイル>` で EPUB 3.0 を作り、ダウンロードのディレクトリ（macOS では `~/Downloads`）に `<題名>.epub` で書く。同じ名前があれば `<題名> (2).epub` のように番号を付ける。これにより、[ADR 0026](0026-kindle-epub-version-3.md) で決めなかった download epub の版を 3.0 とする
 - download zip：プロジェクトのディレクトリを、題名のディレクトリに入れた zip にして、ダウンロードのディレクトリに `<題名>.zip` で書く。利用者が手で直して epub-builder で作り直せるようにする
-- send to Kindle：EPUB 3.0 を `<題名>.epub` の名前で一時ディレクトリに作り、send-to-kindle に渡す。`.env` は ADR 0028 のとおり `--env-file` で渡す。送れたら、送った話の全てに送った日時（`sent_at`）を記録する。送れなければ記録しない
+- send to Kindle：EPUB 3.0 を `<題名>.epub` の名前で一時ディレクトリに作り、send-to-kindle に渡す。`.env` は [ADR 0028](0028-send-to-kindle-env-files.md) のとおり `--env-file` で渡す。送れたら、送った話の全てに送った日時（`sent_at`）を記録する。送れなければ記録しない
 - 子プロセスの誤りは、標準エラー出力の内容をあわせてボタンの横に出す
 - Finder から起動したアプリの PATH には、`#!/usr/bin/env deno` で動く epub-builder と send-to-kindle が使う deno がない。子プロセスには、アプリの PATH の後に、実行ファイルを探す場所と mise の shim（`~/.local/share/mise/shims`）を足した PATH を渡す。クローラーも同じ PATH で起動する
 - ボタンは、成功したら結果をボタンの横に出す。書き出したときはファイルの名前と、Finder で表示するボタンを出す。送ったときは送った話の数を出し、送った印を読み直す
-- 作品の send to Kindle は、送る話の数を示して確かめてから送る（ADR 0023）。話ごとの send to Kindle は確かめない
+- 作品の send to Kindle は、送る話の数を示して確かめてから送る（[ADR 0023](0023-in-page-confirmation.md)）。話ごとの send to Kindle は確かめない
 - 話のページの三つのボタンは、本文を取得済みの話だけに出す
 
 ## 実装しないこと
@@ -51,12 +51,12 @@ Kindle への送信は send-to-kindle を子プロセスとして起動して行
 - `src-tauri/src/kindle.rs`：`--env-file` で渡す `.env` を、指定があるか既定の場所にあるときだけ渡すこと
 - E2E テスト：ボタンが押せること、範囲（作品か話）を渡すこと、結果と Finder で表示するボタン、作品の send to Kindle の確認、送った印、誤りの表示
 - 実際のアプリで download epub を押し、本物の epub-builder で EPUB ができることを確かめる。開発用のデータの全ての作品から本物の epub-builder で EPUB ができ、本文にエスケープの `\` が残らないことを確かめた
-- 実際の Kindle への送信は、利用者が確かめる（ADR 0026 のテスト設計）
+- 実際の Kindle への送信は、利用者が確かめる（[ADR 0026](0026-kindle-epub-version-3.md) のテスト設計）
 
 ## トレードオフ
 
 - 一時ディレクトリにファイルを書いてから epub-builder を起動するため、作品が大きいと時間がかかる。その代わり、epub-builder のコマンドをそのまま使え、zip の中身と EPUB の元が同じになる
 - `《` を文字にするため、本文の中の `｜漢字《かんじ》` のような記法はルビにならない。クローラーがルビを `<ruby>` にしているため、残った記法は作者が文字として書いたものとみなす
 - 段落の間の空行を表す `<br>` の行に、空行を挟まずに本文が続くと、Markdown の HTML のまとまりとなり、エスケープの `\` が文字として残る。クローラーの出力では空行を挟むため、起こらないとみなす
-- 縦書きは `writing-mode` と頁送りの向きだけで伝える。Kindle で縦書きになるかは、実機で確かめるまで分からない（ADR 0026）
+- 縦書きは `writing-mode` と頁送りの向きだけで伝える。Kindle で縦書きになるかは、実機で確かめるまで分からない（[ADR 0026](0026-kindle-epub-version-3.md)）
 - ダウンロードのディレクトリに書くため、場所を選べない。その代わり、ダイアログのためのプラグインと権限を足さずに済む

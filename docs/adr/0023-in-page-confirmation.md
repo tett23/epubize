@@ -4,7 +4,7 @@
 
 ## 文脈
 
-管理画面の購読の remove（ADR 0020）と、作品の remove episodes（ADR 0018）は、実行する前に `window.confirm` で確かめていた。
+管理画面の購読の remove（[ADR 0020](0020-settings-screen.md)）と、作品の remove episodes（[ADR 0018](0018-import-and-database-backed-screens.md)）は、実行する前に `window.confirm` で確かめていた。
 実際のアプリで試したところ、Tauri の WebView（macOS の WKWebView）ではダイアログが出ず、確かめずに取り消した扱いになり、どちらも実行できなかった。
 また、remove episodes の後に作品のページを読み直していなかったため、消した話が表示され続けた。
 
@@ -17,12 +17,12 @@
 
 ## 実装しないこと
 
-- Tauri の dialog プラグインは使わない。権限の設定が増え、E2E テスト（ADR 0022）で扱いにくいため
+- Tauri の dialog プラグインは使わない。権限の設定が増え、E2E テスト（[ADR 0022](0022-development-infrastructure.md)）で扱いにくいため
 - `window.alert` や `window.prompt` も使わない
 
 ## テスト設計
 
-- E2E テスト（ADR 0022）で、購読の remove で確認が出ること、「やめる」でコマンドが呼ばれないこと、「実行する」で外れて一覧から消えること、remove episodes を実行すると話が表示から消えることを確かめる
+- E2E テスト（[ADR 0022](0022-development-infrastructure.md)）で、購読の remove で確認が出ること、「やめる」でコマンドが呼ばれないこと、「実行する」で外れて一覧から消えること、remove episodes を実行すると話が表示から消えることを確かめる
 - 実際のアプリで、購読の remove と remove episodes の確認、「やめる」と「実行する」、消えた後の表示を確かめた
 
 ## トレードオフ

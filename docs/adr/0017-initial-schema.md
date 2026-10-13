@@ -4,7 +4,7 @@
 
 ## 文脈
 
-取得した結果を保存する先として、SQLite のスキーマを作る（ADR 0003、ADR 0013）。
+取得した結果を保存する先として、SQLite のスキーマを作る（[ADR 0003](0003-tauri-and-sqlite.md)、[ADR 0013](0013-sqlite-migrations.md)）。
 利用者の求めで、[kindlize](https://github.com/tett23/kindlize) の Prisma のスキーマを参考にする。kindlize は次の形だった。
 
 - 作品、作者、話を、サイトごとの表（`NovelSourceNarou` など）に分け、共通の表から多態の外部キーでつないでいた
@@ -12,7 +12,7 @@
 - 作品に話数、文字数、完結済みかを持っていた
 - 作品ごとの整形の設定は、データベースではなく別の KVS に持っていた
 
-一方、epubize が受け取るデータの形はクローラーの出力（ADR 0005）で決まる。
+一方、epubize が受け取るデータの形はクローラーの出力（[ADR 0005](0005-crawler-data-format.md)）で決まる。
 
 - 4 つのサイトで、作品、目次の項目、話の形は同じである
 - 作者は名前と URL（ないこともある）だけで、サイト上の ID はない
@@ -20,7 +20,7 @@
 - 完結済みかどうかと、作品の文字数は渡されない。話の文字数は渡される。完結済みかどうかは画面に出すため、渡してもらうことにした
 - 挿絵は話から URL で参照され、別のコマンドで取得する
 
-epubize では、整形の設定（ADR 0011）をメモリ上だけに持ち、再起動すると既定に戻るようにしていた。これは失敗だったと利用者が判断し、作品と一緒にデータベースに持つことにした。
+epubize では、整形の設定（[ADR 0011](0011-gui-screens-after-kindlize.md)）をメモリ上だけに持ち、再起動すると既定に戻るようにしていた。これは失敗だったと利用者が判断し、作品と一緒にデータベースに持つことにした。
 
 まだ v0.0.1 も出していないため、既存のデータベースはない。
 
@@ -28,14 +28,14 @@ epubize では、整形の設定（ADR 0011）をメモリ上だけに持ち、�
 
 - マイグレーションは `src-tauri/migrations/0001_create_tables.sql` の 1 つにまとめる
 - 表は SQLite の `STRICT` で作り、型の違う値を拒む。日時は UTC の ISO 8601 の文字列で持つ
-- 購読している作品の一覧は表にしない（ADR 0014）。作品は、購読と同じ `site` と `site_id` で対応させる
+- 購読している作品の一覧は表にしない（[ADR 0014](0014-subscriptions-json-and-environment-directories.md)）。作品は、購読と同じ `site` と `site_id` で対応させる
 - `novels`（作品。kindlize の `Novel` と `NovelSource*`）
   - `site`（`narou`、`novel18`、`hameln`、`kakuyomu` のどれか）と `site_id`（サイトの上での作品 ID。hameln も文字列で持つ）の組を一意にする
   - `url`、`title`、`description`、`episode_count`（目次の話数）、`is_concluded`（完結済みか。分からなければ null）、`metadata_fetched_at`（目次を取得した日時）を持つ
-  - 完結済みかどうかは、クローラーの出力の `novel` レコードに任意の項目 `isConcluded`（真偽値、または null）を足して受け取る。項目の追加なので `v` は上げない（ADR 0005）。クローラーの側の対応が要る
+  - 完結済みかどうかは、クローラーの出力の `novel` レコードに任意の項目 `isConcluded`（真偽値、または null）を足して受け取る。項目の追加なので `v` は上げない（[ADR 0005](0005-crawler-data-format.md)）。クローラーの側の対応が要る
   - 作者は `author_name` と `author_url`（null 可）として作品の表に持つ。kindlize の `Author` と `AuthorSource*` の表は作らない
-  - 整形の設定を `normalize_options` に JSON の文字列で持つ。項目は ADR 0011 の画面と同じ（`direction` と、kindlize の整形の項目）とする。null なら既定の設定を使う。`json_valid` で JSON であることを縛る
-  - これにより、ADR 0011 の「整形の設定を保存しない」を改める。ADR 0011 は、そのほかの決定が生きているため、ステータスを採択のまま残す
+  - 整形の設定を `normalize_options` に JSON の文字列で持つ。項目は [ADR 0011](0011-gui-screens-after-kindlize.md) の画面と同じ（`direction` と、kindlize の整形の項目）とする。null なら既定の設定を使う。`json_valid` で JSON であることを縛る
+  - これにより、[ADR 0011](0011-gui-screens-after-kindlize.md) の「整形の設定を保存しない」を改める。[ADR 0011](0011-gui-screens-after-kindlize.md) は、そのほかの決定が生きているため、ステータスを採択のまま残す
   - 画面の整形の設定を、この列から読み、この列に書くように変えるのは、作品の一覧をデータベースから読むように変えるときに行う。いまの画面の作品は合成データで、データベースに行がないため
 - `episodes`（話。kindlize の `Episode` と `EpisodeSource*`、`Section`、`EpisodeSent`）
   - `novel_id`（作品を消すと話も消える）、`no`（目次の上での 1 始まりの位置）、`url` を持つ。`novel_id` と `no` の組、`url` をそれぞれ一意にする
@@ -45,7 +45,7 @@ epubize では、整形の設定（ADR 0011）をメモリ上だけに持ち、�
   - Kindle に送った日時を `sent_at` に持つ。kindlize の `EpisodeSent` の表は作らない
   - 大きな列（本文、前書き、後書き）は表の最後に置く
 - `episode_images`（話と挿絵の対応）は、`episode_id`、`position`（話の中で最初に現れた順）、`url` を持つ。話を消すと消える
-- `images`（挿絵）は、`url` を主キーとし、`content_type`、`data`（BLOB、ADR 0003）、`byte_length`、`fetched_at` を持つ。同じ挿絵を複数の話が参照しても 1 つだけ持つ
+- `images`（挿絵）は、`url` を主キーとし、`content_type`、`data`（BLOB、[ADR 0003](0003-tauri-and-sqlite.md)）、`byte_length`、`fetched_at` を持つ。同じ挿絵を複数の話が参照しても 1 つだけ持つ
 - 各表に `created_at` と `updated_at` を持つ。`created_at` は既定値で入れ、`updated_at` は書き込むアプリが入れる
 - 値の範囲は `CHECK` で縛る（`site` の値、`no` と `position` が 1 以上、数が 0 以上、`byte_length` がデータの長さと等しい、真偽値が 0 か 1）
 
@@ -61,14 +61,14 @@ epubize では、整形の設定（ADR 0011）をメモリ上だけに持ち、�
 ## テスト設計
 
 - マイグレーションを適用した新しいデータベースで、次をテストする
-  - ADR 0005 の `novel`、`toc_entry`、`episode`、`image` の各レコードから作った行を保存し、読み戻せること（ADR 0003 のテスト設計）
+  - [ADR 0005](0005-crawler-data-format.md) の `novel`、`toc_entry`、`episode`、`image` の各レコードから作った行を保存し、読み戻せること（[ADR 0003](0003-tauri-and-sqlite.md) のテスト設計）
   - 完結済みかどうかが分からない作品（null）を保存できること
   - `site` と `site_id` の組、`novel_id` と `no` の組、話の `url`、挿絵の `url` が一意であること
   - 作品を消すと話と、話と挿絵の対応が消え、挿絵は残ること
   - `CHECK` に反する値（知らない `site`、0 の `no`、長さの合わない `byte_length` など）を拒むこと
   - `STRICT` により、型の違う値を拒むこと
   - 整形の設定を JSON で保存して読み戻せること、null を許すこと、JSON でない文字列を拒むこと
-- マイグレーションが 1 つで、版が 1 になることは、既存のマイグレーションのテスト（ADR 0013）で確かめる
+- マイグレーションが 1 つで、版が 1 になることは、既存のマイグレーションのテスト（[ADR 0013](0013-sqlite-migrations.md)）で確かめる
 
 ## トレードオフ
 

@@ -1,19 +1,19 @@
 # ADR 0025: mobi への対応をやめ、作品のページの話ごとに download epub と send to Kindle を置く
 
-ステータス: 採択→ADR 0029、ADR 0032
+ステータス: 採択→[ADR 0029](0029-export-epub-zip-and-send-to-kindle.md)、[ADR 0032](0032-download-mobi-with-kindlegen-and-striptool.md)
 
 ## 文脈
 
-kindlize の画面にならい、作品のページと話のページに download mobi のボタンを置いていた（ADR 0011）。生成と送信の機能はまだなく、押せないボタンとして置いていた（ADR 0018）。
+kindlize の画面にならい、作品のページと話のページに download mobi のボタンを置いていた（[ADR 0011](0011-gui-screens-after-kindlize.md)）。生成と送信の機能はまだなく、押せないボタンとして置いていた（[ADR 0018](0018-import-and-database-backed-screens.md)）。
 利用者は mobi をもう使わない。Kindle は EPUB を受け付けるため、Kindle に送るときも EPUB でよい。
 作品のページでは、話ごとに EPUB を取り出したり Kindle に送ったりしたい。
 
 ## 実装すること
 
 - mobi への対応をやめる。作品のページと話のページから download mobi のボタンを消す
-- これにより、ADR 0011 と ADR 0018 のうち、download mobi のボタンを置くことを改める。ADR 0011 と ADR 0018 は、そのほかの決定が生きているため、ステータスを採択のまま残す
+- これにより、[ADR 0011](0011-gui-screens-after-kindlize.md) と [ADR 0018](0018-import-and-database-backed-screens.md) のうち、download mobi のボタンを置くことを改める。[ADR 0011](0011-gui-screens-after-kindlize.md) と [ADR 0018](0018-import-and-database-backed-screens.md) は、そのほかの決定が生きているため、ステータスを採択のまま残す
 - 作品のページの目次で、本文を取得済みの話には、話の題名の後ろの列に download epub と send to Kindle のボタンを置く。本文がない話には置かない
-- 二つのボタンは、EPUB の生成（ADR 0021）と Kindle への送信を実装するまで、押せないボタンとして置く
+- 二つのボタンは、EPUB の生成（[ADR 0021](0021-epub-via-epub-builder-process.md)）と Kindle への送信を実装するまで、押せないボタンとして置く
 - Kindle に送るものは EPUB とする
 
 ## 実装しないこと
@@ -23,7 +23,7 @@ kindlize の画面にならい、作品のページと話のページに downloa
 
 ## テスト設計
 
-- E2E テスト（ADR 0022）で、本文を取得済みの話だけに、話の題名の後ろに二つのボタンが押せない状態で出ること、本文のない話にはボタンが出ないこと、作品のページにも話のページにも mobi のボタンが出ないことを確かめる
+- E2E テスト（[ADR 0022](0022-development-infrastructure.md)）で、本文を取得済みの話だけに、話の題名の後ろに二つのボタンが押せない状態で出ること、本文のない話にはボタンが出ないこと、作品のページにも話のページにも mobi のボタンが出ないことを確かめる
 
 ## トレードオフ
 

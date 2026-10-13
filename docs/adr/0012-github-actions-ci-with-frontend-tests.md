@@ -1,13 +1,13 @@
 # ADR 0012: GitHub Actions の CI で、フロントエンドの単体テストも行う
 
-ステータス: 採択→ADR 0022
+ステータス: 採択→[ADR 0022](0022-development-infrastructure.md)
 
 ## 文脈
 
-ADR 0010 で GitHub Actions の CI を決めた。
+[ADR 0010](0010-github-actions-ci.md) で GitHub Actions の CI を決めた。
 そのときはフロントエンドのテストの仕組みがなかったため、フロントエンドのテストは CI で行わないとした。
-ADR 0011 で vitest を入れ、`pnpm test` でフロントエンドの単体テストを動かせるようになった。
-前提が変わったため、CI の決定を改めて書く。この ADR は ADR 0010 を置き換える。
+[ADR 0011](0011-gui-screens-after-kindlize.md) で vitest を入れ、`pnpm test` でフロントエンドの単体テストを動かせるようになった。
+前提が変わったため、CI の決定を改めて書く。この ADR は [ADR 0010](0010-github-actions-ci.md) を置き換える。
 
 ## 実装すること
 
@@ -23,7 +23,7 @@ ADR 0011 で vitest を入れ、`pnpm test` でフロントエンドの単体テ
 
 ## 実装しないこと
 
-- ADR の変更を CI で検査することはしない。ADR 0002 のとおり、サーバ側での検査は行わない
+- ADR の変更を CI で検査することはしない。[ADR 0002](0002-immutable-adrs.md) のとおり、サーバ側での検査は行わない
 - macOS や Windows での実行と、配布物の作成（`tauri build`）とリリースはしない。必要になったときに決める
 - フロントエンドの lint と、画面を実際に操作する E2E テストは行わない。仕組みを入れるときに決める
 

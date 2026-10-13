@@ -4,8 +4,8 @@
 
 ## 文脈
 
-CI は ADR 0012 で決めた。そこでは、フロントエンドの lint と、画面を実際に操作する E2E テストを、仕組みを入れるときに決めるとしていた。
-管理画面の購読の remove と、作品の remove episodes は、単体テストでは通っていたが、実際のアプリでは動かなかった（ADR 0023）。画面の操作を自動で試験する仕組みがなかったためである。
+CI は [ADR 0012](0012-github-actions-ci-with-frontend-tests.md) で決めた。そこでは、フロントエンドの lint と、画面を実際に操作する E2E テストを、仕組みを入れるときに決めるとしていた。
+管理画面の購読の remove と、作品の remove episodes は、単体テストでは通っていたが、実際のアプリでは動かなかった（[ADR 0023](0023-in-page-confirmation.md)）。画面の操作を自動で試験する仕組みがなかったためである。
 主な利用環境は macOS だが、CI は Linux だけで動いていた。配布物（`.app`、`.dmg`）を作る手順もなかった。
 Tauri の WebDriver（tauri-driver）は macOS に対応していない。
 
@@ -27,11 +27,11 @@ Tauri の WebDriver（tauri-driver）は macOS に対応していない。
 - CI のワークフローの権限は `contents: read` だけとし、同じブランチで新しい実行が始まったら古い実行は取り消す
 - pnpm の版は `package.json` の `packageManager` で固定し、CI と手元で揃える。pnpm はこの版を `pnpm-lock.yaml` にも記録するため、`packageManager` を変えたらロックファイルも更新する
 - Rust は stable を使う。Linux の Tauri のジョブでは WebKitGTK などの依存を apt で入れる
-- ADR の変更を CI で検査することはしない（ADR 0002）
+- ADR の変更を CI で検査することはしない（[ADR 0002](0002-immutable-adrs.md)）
 - 配布物を作るワークフロー（`.github/workflows/release.yml`）を置く
   - `v` で始まるタグの push と、手で動かしたときに、macOS で release ビルドの `.app` と `.dmg` を作り、成果物として残す
   - タグの push のときは、`.dmg` を添付した下書きの GitHub Release を作る
-- これにより ADR 0012 を置き換える
+- これにより [ADR 0012](0012-github-actions-ci-with-frontend-tests.md) を置き換える
 
 ## 実装しないこと
 

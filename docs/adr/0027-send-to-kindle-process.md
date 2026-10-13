@@ -1,11 +1,11 @@
 # ADR 0027: Kindle への送信は send-to-kindle を子プロセスとして起動して行い、その実行ファイルを管理画面で指定する
 
-ステータス: 採択→ADR 0029
+ステータス: 採択→[ADR 0029](0029-export-epub-zip-and-send-to-kindle.md)
 
 ## 文脈
 
-Kindle には EPUB 3.0 を送る（ADR 0025、ADR 0026）。送信の方法はまだ決めていなかった。kindlize は SMTP でメールを送っていた。
-EPUB の生成は epub-builder を子プロセスとして起動して行い、その実行ファイルは管理画面で指定する（ADR 0021、ADR 0024）。
+Kindle には EPUB 3.0 を送る（[ADR 0025](0025-drop-mobi-and-per-episode-buttons.md)、[ADR 0026](0026-kindle-epub-version-3.md)）。送信の方法はまだ決めていなかった。kindlize は SMTP でメールを送っていた。
+EPUB の生成は epub-builder を子プロセスとして起動して行い、その実行ファイルは管理画面で指定する（[ADR 0021](0021-epub-via-epub-builder-process.md)、[ADR 0024](0024-epub-builder-path-setting.md)）。
 利用者の求めで、Kindle への送信は別の実行ファイル send-to-kindle に任せ、その場所を管理画面で指定できるようにする。
 
 ## 実装すること
@@ -13,7 +13,7 @@ EPUB の生成は epub-builder を子プロセスとして起動して行い、�
 - Kindle への送信は、send-to-kindle を子プロセスとして起動して行う。epubize は SMTP などの送信の方法を持たない
 - `settings.json` に `sendToKindlePath`（文字列、または null）を足す。null なら自動で探す
 - 自動で探すときは、PATH から、それでもなければよく使う場所（`~/bin`、`~/.local/bin`、`/opt/homebrew/bin`、`/usr/local/bin`）から `send-to-kindle` という名前の実行ファイルを探す。探す手順はクローラーと epub-builder と共通にする
-- 指定した実行ファイルが空、見つからない、または実行できないときは、設定を保存しない（ADR 0020 と同じ）
+- 指定した実行ファイルが空、見つからない、または実行できないときは、設定を保存しない（[ADR 0020](0020-settings-screen.md) と同じ）
 - 管理画面に「send-to-kindle」の節を、epub-builder と同じ形で置く。指定の欄と、いま使うものと、自動で見つかるものを表示する。送信がまだないことも書く
 - send-to-kindle の扱いは `src-tauri/src/kindle.rs` に置く。いまは実行ファイルを決めるところまでを持つ
 
