@@ -1,6 +1,6 @@
 # ADR 0002: コミット済みの ADR を変更不可とし、hook で強制する
 
-ステータス: 採択
+ステータス: 採択→[ADR 0035](0035-use-external-adr-guard.md)
 
 ## 文脈
 

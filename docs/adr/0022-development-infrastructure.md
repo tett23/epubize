@@ -1,6 +1,6 @@
 # ADR 0022: フロントエンドを Biome で検査し、画面を Playwright で試験し、CI を macOS でも動かし、配布物を作るワークフローを置く
 
-ステータス: 採択
+ステータス: 採択→[ADR 0035](0035-use-external-adr-guard.md)
 
 ## 文脈
 

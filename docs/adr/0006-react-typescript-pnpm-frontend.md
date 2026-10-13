@@ -1,6 +1,6 @@
 # ADR 0006: Tauri のフロントエンドを React と TypeScript で書き、パッケージ管理に pnpm を使う
 
-ステータス: 採択
+ステータス: 採択→[ADR 0035](0035-use-external-adr-guard.md)
 
 ## 文脈
 
