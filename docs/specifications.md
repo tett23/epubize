@@ -366,9 +366,11 @@ epub-builder の [ADR 0019](https://github.com/tett23/epub-builder/blob/main/doc
 ## 14. 開発
 
 - 検査とテストは README の「開発」にある。フロントエンドは Biome、vitest、Playwright（Tauri のコマンドとイベントを偽物に差し替えて Vite の開発サーバーに対して動かす）、Rust は rustfmt、clippy、cargo test で行う（[ADR 0022](adr/0022-development-infrastructure.md)）
-- CI は `main` への push と pull request で、ADR、Frontend、E2E、Tauri（ubuntu-24.04 と macos-15）のジョブを並列に動かす。ADR のジョブは、adr-guard の composite action（`tett23/adr-guard@v0.5.0`）で、範囲のコミットを `check-range --allow-status --allow-links` で検査し、`links` でリンクのない ADR の参照を検査する（[ADR 0035](adr/0035-use-external-adr-guard.md)）
+- CI は `main` への push と pull request で、ADR、Frontend、E2E、Tauri（ubuntu-24.04 と macos-15）のジョブを並列に動かす。ADR のジョブは、adr-guard の composite action（`tett23/adr-guard@v0.8.0`）で、範囲のコミットを `check-range --allow-status --allow-links` で検査し、`links` でリンクのない ADR の参照を、`check-status` でステータスの行の数を検査する（[ADR 0035](adr/0035-use-external-adr-guard.md)、[ADR 0036](adr/0036-adr-guard-v0-8-0.md)）
 - `v` で始まるタグを push すると、macOS 向けの `.app` と `.dmg` を作り、下書きの GitHub Release に添付する（署名なし）
 - コミット済みの ADR は、`ステータス:` の行と ADR の参照のリンクを除いて変更できない。[adr-guard](https://github.com/tett23/adr-guard) を git の pre-commit hook（`adr-guard pre-commit --allow-status --allow-links`）と CI で使って強制する。Claude Code の hook は、リポジトリではなく利用者の全体の設定に置く（[ADR 0002](adr/0002-immutable-adrs.md)、[ADR 0035](adr/0035-use-external-adr-guard.md)）
+- ADR は、行頭が `ステータス:` の行をちょうど1つ持つ。無い ADR と2つ以上ある ADR は、pre-commit hook と CI の `check-status` で拒否する（[ADR 0036](adr/0036-adr-guard-v0-8-0.md)）
+- 監査や計測の記録（どの深さの `docs/` でも、`docs/audit/` と `docs/benchmarks/` 以下のファイル）も、コミットした後は変更・削除・移動できない。`--allow-status` と `--allow-links` は記録には効かない。直す場合は新しい記録を作る（[ADR 0036](adr/0036-adr-guard-v0-8-0.md)）
 - 文書（`.md`）の中の ADR の参照（`ADR 0001` の形）には、ADR のファイルへのリンクを付ける。ほかのリポジトリの ADR への参照は、そのリポジトリの ADR にリンクする
 - テストのデータは全て合成したもので、Web 小説の本文などの著作物を含まない
 
@@ -388,6 +390,7 @@ epub-builder の [ADR 0019](https://github.com/tett23/epub-builder/blob/main/doc
 ## 16. ADR の状態
 
 ADR のステータスは、`採択`、`採択→<変更した ADR>`、`提案`、`却下` のいずれかとする。
+ステータスは、各 ADR の行頭の `ステータス:` の行（ちょうど1つ）に書く。
 後の ADR で決定の全部または一部を変えた ADR は、`採択→ADR NNNN` とする。
 ADR を破棄したときは、破棄した経緯と理由をこの節に書き、その連番は欠番とする。
 
@@ -414,5 +417,6 @@ ADR を破棄したときは、破棄した経緯と理由をこの節に書き�
 | 0029 | 採択→[ADR 0030](adr/0030-remove-empty-line-as-paragraph-margin.md)、[ADR 0034](adr/0034-primary-writing-mode-by-epub-builder.md)   | 整形の設定の removeEmptyLine を使わないこと（0030）、`primary-writing-mode` を書かないこと（0034） |
 | 0032 | 採択→[ADR 0034](adr/0034-primary-writing-mode-by-epub-builder.md)             | `primary-writing-mode` を書かないこと                                                       |
 | 0033 | 採択→[ADR 0034](adr/0034-primary-writing-mode-by-epub-builder.md)             | `primary-writing-mode` を書かないこと                                                       |
+| 0035 | 採択→[ADR 0036](adr/0036-adr-guard-v0-8-0.md) | adr-guard の版（v0.5.0） |
 
 破棄した ADR はない。
