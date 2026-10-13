@@ -51,7 +51,7 @@ epubize は次のプログラムを子プロセスとして起動する。PATH�
 | プログラム       | 使うところ                                       | 入れ方                                                                                                |
 | ---------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | `novel-crawler`  | fetch(作品と話の取得)                            | 非公開のため別に用意する                                                                              |
-| `epub-builder`   | download epub、send to Kindle(EPUB 3.0 の生成)   | [tett23/epub-builder](https://github.com/tett23/epub-builder) を clone して `deno task install`。ADR 0019(Kindle の `primary-writing-mode`)に対応したものを使う |
+| `epub-builder`   | download epub、send to Kindle(EPUB 3.0 の生成)   | [tett23/epub-builder](https://github.com/tett23/epub-builder) を clone して `deno task install`。[ADR 0019](https://github.com/tett23/epub-builder/blob/main/docs/adr/0019-epub-output-and-project-layout-with-primary-writing-mode.md)(Kindle の `primary-writing-mode`)に対応したものを使う |
 | `send-to-kindle` | send to Kindle(メールでの送信)                   | [tett23/send-to-kindle](https://github.com/tett23/send-to-kindle) の Releases から取り出し、`~/.local/bin` などに置く(下記) |
 | `kindlegen`      | download mobi(EPUB から MOBI への変換)           | Kindle Previewer の `Contents/Resources/KFXGen/bin/kindlegen` を `~/bin` などにコピーする               |
 | `striptool`      | download mobi(MOBI に埋め込まれた元の EPUB の除去) | 同じ場所の `striptool` を `~/bin` などにコピーする                                                    |
@@ -175,13 +175,24 @@ epubize は同じ正規化を重ねず、そのまま EPUB に使う。
 
 ## 開発
 
-clone した後に一度、コミット済み ADR の変更を拒否する git の hook を有効にする(要 Deno)。
+コミット済みの ADR の変更は、[adr-guard](https://github.com/tett23/adr-guard) で拒否する([ADR 0002](docs/adr/0002-immutable-adrs.md)、[ADR 0035](docs/adr/0035-use-external-adr-guard.md))。
+変えてよいのは、ステータスの行と、ADR の参照のリンクだけである。文書の中の ADR の参照(`ADR 0001` の形)には、ADR のファイルへのリンクを付ける。
+
+adr-guard を入れる。[Releases](https://github.com/tett23/adr-guard/releases) のバイナリを PATH に置いてもよい。
+
+```bash
+cargo install --git https://github.com/tett23/adr-guard --tag v0.5.0
+```
+
+clone した後に一度、git の pre-commit hook を有効にする。adr-guard がないと、hook はコミットを拒否する。
 
 ```bash
 git config core.hooksPath .githooks
 ```
 
-コミット済みの ADR は、ステータス行以外を変更できない([ADR 0002](docs/adr/0002-immutable-adrs.md))。
+リンクのない ADR の参照は、`adr-guard links` で調べ、`adr-guard links --fix` でリンクにできる。
+Claude Code の hook(`adr-guard claude-hook --allow-status`)は、リポジトリではなく全体の設定(`~/.claude/settings.json`)で有効にする。
+CI でも、push と pull request の範囲のコミットを adr-guard で検査する。
 
 GUI は Tauri + React + TypeScript で、パッケージ管理は pnpm を使う([ADR 0006](docs/adr/0006-react-typescript-pnpm-frontend.md))。
 Node.js、pnpm、Rust が必要になる。

@@ -1,12 +1,12 @@
 # ADR 0010: GitHub Actions で、ADR の hook のテスト、フロントエンドのビルド、Rust の検査とテストを行う
 
-ステータス: 採択→ADR 0012
+ステータス: 採択→[ADR 0012](0012-github-actions-ci-with-frontend-tests.md)
 
 ## 文脈
 
-Tauri のアプリ（ADR 0003、ADR 0006）と、ADR を守る hook の判定スクリプト（ADR 0002）がそろった。
+Tauri のアプリ（[ADR 0003](0003-tauri-and-sqlite.md)、[ADR 0006](0006-react-typescript-pnpm-frontend.md)）と、ADR を守る hook の判定スクリプト（[ADR 0002](0002-immutable-adrs.md)）がそろった。
 手元で通しているビルドとテストを、push と pull request のたびに自動で確かめたい。
-リポジトリは GitHub にある公開リポジトリである（ADR 0001）。
+リポジトリは GitHub にある公開リポジトリである（[ADR 0001](0001-public-repository-for-epub-and-gui.md)）。
 
 ## 実装すること
 
@@ -22,7 +22,7 @@ Tauri のアプリ（ADR 0003、ADR 0006）と、ADR を守る hook の判定ス
 
 ## 実装しないこと
 
-- ADR の変更を CI で検査することはしない。ADR 0002 のとおり、サーバ側での検査は行わない
+- ADR の変更を CI で検査することはしない。[ADR 0002](0002-immutable-adrs.md) のとおり、サーバ側での検査は行わない
 - macOS や Windows での実行と、配布物の作成（`tauri build`）とリリースはしない。必要になったときに決める
 - フロントエンドのテストと lint は、仕組みがまだないため行わない
 

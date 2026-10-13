@@ -1,10 +1,10 @@
 # ADR 0032: kindlegen と striptool で MOBI を作る download mobi を置き、送信は EPUB のままにする
 
-ステータス: 採択→ADR 0034
+ステータス: 採択→[ADR 0034](0034-primary-writing-mode-by-epub-builder.md)
 
 ## 文脈
 
-ADR 0025 では mobi への対応をやめ、Kindle には EPUB を送ることにした。ADR 0026 で、Kindle に送る EPUB は 3.0 とした。
+[ADR 0025](0025-drop-mobi-and-per-episode-buttons.md) では mobi への対応をやめ、Kindle には EPUB を送ることにした。[ADR 0026](0026-kindle-epub-version-3.md) で、Kindle に送る EPUB は 3.0 とした。
 Kindle の端末に USB などで直接入れるには、MOBI が要る。Kindle Previewer の `Contents/Resources/KFXGen/bin` には、kindlegen と striptool が入っている。
 
 - kindlegen（V2.9）は、EPUB から MOBI（KF8 を含む）を作る。`-o` にはファイルの名前だけを渡せ、入力と同じディレクトリに書く。警告があると終了コード 1、誤りがあると 2 で終わる。表紙がないと警告（W14016）を出す
@@ -15,22 +15,22 @@ Send to Kindle のメールは、2022 年から MOBI と AZW3 を受け付けな
 
 ## 実装すること
 
-- 作品のページ、作品のページの話の行、話のページに、download mobi のボタンを置く。download epub と同じく、本文を取得済みの話だけに置き、範囲（作品か話）は ADR 0029 と同じとする
-- download mobi は、ADR 0029 と同じ EPUB 3.0 を作り、kindlegen で MOBI にし、striptool で元の EPUB を取り除き、ダウンロードのディレクトリに `<題名>.mobi` で書く。同じ名前があれば番号を付ける
+- 作品のページ、作品のページの話の行、話のページに、download mobi のボタンを置く。download epub と同じく、本文を取得済みの話だけに置き、範囲（作品か話）は [ADR 0029](0029-export-epub-zip-and-send-to-kindle.md) と同じとする
+- download mobi は、[ADR 0029](0029-export-epub-zip-and-send-to-kindle.md) と同じ EPUB 3.0 を作り、kindlegen で MOBI にし、striptool で元の EPUB を取り除き、ダウンロードのディレクトリに `<題名>.mobi` で書く。同じ名前があれば番号を付ける
 - kindlegen と striptool は EPUB の隣に書くため、EPUB を作業用の空のディレクトリに置いてから起動する。kindlegen には `-locale ja` を渡し、誤りを日本語で受け取る
 - kindlegen の終了コードが 0 か 1 で、MOBI ができていれば成功とする。それ以外は、標準出力のうち誤りの行を画面に出す
 - striptool が 0 以外で終わったとき、または元の EPUB を取り除いた MOBI がないときは、誤りとする
-- `settings.json` に `kindlegenPath` と `striptoolPath` を足す。null なら、クローラーと同じ場所から `kindlegen` と `striptool` を自動で探す。実行できない指定は保存しない（ADR 0020）
+- `settings.json` に `kindlegenPath` と `striptoolPath` を足す。null なら、クローラーと同じ場所から `kindlegen` と `striptool` を自動で探す。実行できない指定は保存しない（[ADR 0020](0020-settings-screen.md)）
 - 管理画面に kindlegen と striptool の節を、epub-builder と同じ形で置く
-- これにより、ADR 0025 の「mobi への対応をやめる」を、端末に直接入れるための download mobi について改める。ADR 0025 は、そのほかの決定が生きているため、ステータスを採択のまま残す
+- これにより、[ADR 0025](0025-drop-mobi-and-per-episode-buttons.md) の「mobi への対応をやめる」を、端末に直接入れるための download mobi について改める。[ADR 0025](0025-drop-mobi-and-per-episode-buttons.md) は、そのほかの決定が生きているため、ステータスを採択のまま残す
 
 ## 実装しないこと
 
-- send to Kindle で MOBI を送ることはしない。送信は ADR 0026 のとおり EPUB 3.0 のままとする
+- send to Kindle で MOBI を送ることはしない。送信は [ADR 0026](0026-kindle-epub-version-3.md) のとおり EPUB 3.0 のままとする
 - kindlegen と striptool を epubize に同梱しない。Kindle Previewer から利用者が取り出して置く
 - kindlegen の `-c1`、`-c2` などの圧縮の指定、`-dont_append_source` は使わない
 - 表紙を作って kindlegen の警告をなくすことはしない
-- Kindle 向けの縦書きの指定（パッケージ文書の `primary-writing-mode`）は書かない。epub-builder が書かないため（ADR 0029）
+- Kindle 向けの縦書きの指定（パッケージ文書の `primary-writing-mode`）は書かない。epub-builder が書かないため（[ADR 0029](0029-export-epub-zip-and-send-to-kindle.md)）
 
 ## テスト設計
 

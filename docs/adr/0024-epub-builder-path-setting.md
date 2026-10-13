@@ -1,18 +1,18 @@
 # ADR 0024: 管理画面で epub-builder の実行ファイルを指定し、指定がなければ PATH などから探す
 
-ステータス: 採択→ADR 0029
+ステータス: 採択→[ADR 0029](0029-export-epub-zip-and-send-to-kindle.md)
 
 ## 文脈
 
-EPUB は epub-builder を子プロセスとして起動して作り、実行ファイルの場所は管理画面で指定できるようにすると決めた（ADR 0021）。
-クローラーの実行ファイルは、管理画面で指定でき、指定がなければ PATH などから探す（ADR 0018、ADR 0020）。
+EPUB は epub-builder を子プロセスとして起動して作り、実行ファイルの場所は管理画面で指定できるようにすると決めた（[ADR 0021](0021-epub-via-epub-builder-process.md)）。
+クローラーの実行ファイルは、管理画面で指定でき、指定がなければ PATH などから探す（[ADR 0018](0018-import-and-database-backed-screens.md)、[ADR 0020](0020-settings-screen.md)）。
 epub-builder のインターフェースはまだ決まっておらず、EPUB の生成は実装していない。
 
 ## 実装すること
 
 - `settings.json` に `epubBuilderPath`（文字列、または null）を足す。null なら自動で探す
 - 自動で探すときは、PATH から、それでもなければよく使う場所（`~/bin`、`~/.local/bin`、`/opt/homebrew/bin`、`/usr/local/bin`）から `epub-builder` という名前の実行ファイルを探す。探す手順はクローラーと共通にする
-- 指定した実行ファイルが空、見つからない、または実行できないときは、設定を保存しない（ADR 0020 と同じ）
+- 指定した実行ファイルが空、見つからない、または実行できないときは、設定を保存しない（[ADR 0020](0020-settings-screen.md) と同じ）
 - 管理画面に「epub-builder」の節を、クローラーと同じ形で置く。指定の欄と、いま使うものと、自動で見つかるものを表示する。EPUB の生成がまだないことも書く
 - 二つの欄を区別できるよう、欄の名前を「クローラーの実行ファイル」「epub-builder の実行ファイル」とする
 - epub-builder の扱いは `src-tauri/src/epub.rs` に置く。いまは実行ファイルを決めるところまでを持つ

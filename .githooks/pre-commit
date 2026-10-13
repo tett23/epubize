@@ -1,3 +1,2 @@
 #!/bin/sh
-exec deno run -q --no-config --allow-read --allow-run=git \
-  "$(git rev-parse --show-toplevel)/scripts/adr-guard.ts" pre-commit
+exec adr-guard pre-commit --allow-status --allow-links

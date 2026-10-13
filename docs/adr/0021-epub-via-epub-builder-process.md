@@ -5,20 +5,20 @@
 ## 文脈
 
 EPUB のファイルを作る処理は、別の公開リポジトリ [epub-builder](https://github.com/tett23/epub-builder) で、Deno で動く TypeScript のライブラリとして作っている。
-epubize の取り込みと保存は Rust の側にあり（ADR 0018）、作品の本文と挿絵は SQLite にある（ADR 0017）。
+epubize の取り込みと保存は Rust の側にあり（[ADR 0018](0018-import-and-database-backed-screens.md)）、作品の本文と挿絵は SQLite にある（[ADR 0017](0017-initial-schema.md)）。
 epub-builder は実装の途中で、epubize から渡す形（インターフェース）はまだ決まっていない。
 
 ## 実装すること
 
-- 作品や話の EPUB を作るときは、epub-builder を子プロセスとして起動する。クローラー（ADR 0004）と同じく、Rust の側から起動する
-- epub-builder は epubize に同梱しない。実行ファイル（または Deno で動かすための入口）の場所は、管理画面（ADR 0020）で指定できるようにする
+- 作品や話の EPUB を作るときは、epub-builder を子プロセスとして起動する。クローラー（[ADR 0004](0004-crawl-queues.md)）と同じく、Rust の側から起動する
+- epub-builder は epubize に同梱しない。実行ファイル（または Deno で動かすための入口）の場所は、管理画面（[ADR 0020](0020-settings-screen.md)）で指定できるようにする
 - 渡すデータの形、出力の受け取り方、エラーの伝え方は、epub-builder のインターフェースが決まったときに、新しい ADR で決める
 
 ## 実装しないこと
 
 - epub-builder を Rust で作り直すことはしない
 - epub-builder を WebView の中で動かすことはしない。データベースの読み出しと子プロセスの起動は Rust の側に寄せる
-- 整形の設定を本文に適用するか（ADR 0011、ADR 0017）は、epub-builder の仕様とあわせて、このとき決める。この ADR では決めない
+- 整形の設定を本文に適用するか（[ADR 0011](0011-gui-screens-after-kindlize.md)、[ADR 0017](0017-initial-schema.md)）は、epub-builder の仕様とあわせて、このとき決める。この ADR では決めない
 
 ## テスト設計
 

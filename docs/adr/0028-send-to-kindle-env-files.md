@@ -4,8 +4,8 @@
 
 ## 文脈
 
-Kindle への送信は send-to-kindle を子プロセスとして起動して行う（ADR 0027）。
-send-to-kindle は、送信元と送り先のメールアドレス、SMTP の設定を、`-e`（`--env-file`）で渡したファイルから読む。渡さなければカレントディレクトリの `.env` から、それもなければ環境変数から読む。`-e` で渡したファイルがなければ誤りにする（send-to-kindle のある dotfiles の ADR 0022）。
+Kindle への送信は send-to-kindle を子プロセスとして起動して行う（[ADR 0027](0027-send-to-kindle-process.md)）。
+send-to-kindle は、送信元と送り先のメールアドレス、SMTP の設定を、`-e`（`--env-file`）で渡したファイルから読む。渡さなければカレントディレクトリの `.env` から、それもなければ環境変数から読む。`-e` で渡したファイルがなければ誤りにする（send-to-kindle のある dotfiles の [ADR 0022](https://github.com/tett23/dotfiles/blob/master/docs/adr/0022-send-to-kindle-env-file-option.md)）。
 `.env` にはパスワードを書くため、epubize の画面に値を出したくない。一方で、設定が足りないことは送る前に分かりたい。
 利用者の求めで、`.env` と `.env.example` のパスを管理画面で指定できるようにする。
 
@@ -14,7 +14,7 @@ send-to-kindle は、送信元と送り先のメールアドレス、SMTP の設
 - `settings.json` に `sendToKindleEnvPath` と `sendToKindleEnvExamplePath`（文字列、または null）を足す
 - null なら、環境ごとのアプリ用データ領域（データベースと同じ `~/Library/Application Support/com.github.tett23.epubize/<環境>/`）の `.env` と `.env.example` を使う
 - send-to-kindle を起動するときは、`.env` を `-e` で渡す。ただし、指定がなく、既定の場所にも `.env` がなければ `-e` を渡さない（send-to-kindle は環境変数から読む）
-- `.env` と `.env.example` の指定は、ファイルとしてあるときだけ保存する。名前は問わない。空の指定も保存しない（ADR 0020 と同じ）
+- `.env` と `.env.example` の指定は、ファイルとしてあるときだけ保存する。名前は問わない。空の指定も保存しない（[ADR 0020](0020-settings-screen.md) と同じ）
 - `.env.example` があれば、`.env.example` にあるキーのうち、`.env` にないか値が空のものを管理画面に出す。キーがそろっていれば、そう出す。`.env` がないとき、どちらかを読めないときは、その理由を出す。`.env.example` がなければ何も出さない
 - 管理画面には値を出さず、キーの名前だけを出す
 - dotenv の読み方は、`KEY=VALUE` の行だけを見る。空行と `#` で始まる行は飛ばし、前の `export ` と、値を囲む `"` または `'` を外す
