@@ -303,8 +303,8 @@ assets/images/0001.png      取得済みの挿絵
 | `description`                | あらすじ。空なら書かない                                                    |
 | `page_progression_direction` | 縦書きなら `rtl`、横書きなら `ltr`                                          |
 
-`primary_writing_mode` は書かない。epub-builder は `page_progression_direction` から Kindle の `primary-writing-mode` を決め、パッケージ文書に `<meta name="primary-writing-mode" content="…"/>` として書く。縦書きの本は `vertical-rl`、横書きの本は `horizontal-lr` になる（[ADR 0034](adr/0034-primary-writing-mode-by-epub-builder.md)、epub-builder の [ADR 0019](adr/0019-scheduled-fetch-all.md)）。
-epub-builder の [ADR 0019](adr/0019-scheduled-fetch-all.md) に対応する前の epub-builder では、この指定のない EPUB ができる。
+`primary_writing_mode` は書かない。epub-builder は `page_progression_direction` から Kindle の `primary-writing-mode` を決め、パッケージ文書に `<meta name="primary-writing-mode" content="…"/>` として書く。縦書きの本は `vertical-rl`、横書きの本は `horizontal-lr` になる（[ADR 0034](adr/0034-primary-writing-mode-by-epub-builder.md)、epub-builder の [ADR 0019](https://github.com/tett23/epub-builder/blob/main/docs/adr/0019-epub-output-and-project-layout-with-primary-writing-mode.md)）。
+epub-builder の [ADR 0019](https://github.com/tett23/epub-builder/blob/main/docs/adr/0019-epub-output-and-project-layout-with-primary-writing-mode.md) に対応する前の epub-builder では、この指定のない EPUB ができる。
 
 ### 話の文書
 

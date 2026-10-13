@@ -12,7 +12,7 @@ Kindle が受け付ける EPUB の版について、次のことを確かめた�
 - Send to Kindle は 2022 年から EPUB を受け付け、Amazon が Kindle 用の形式に変換してから端末に届ける
 - Kindle Publishing Guidelines の本体（PDF）は読めず、EPUB 3 のどの機能に対応するかは確かめていない
 
-epubize で作る本は日本語の縦書きの小説が主になる。右から左への頁送り（`page-progression-direction`）は EPUB 3 にしかなく、epub-builder も EPUB 2.0.1 ではこれを書かない（epub-builder の [ADR 0003](0003-tauri-and-sqlite.md)）。
+epubize で作る本は日本語の縦書きの小説が主になる。右から左への頁送り（`page-progression-direction`）は EPUB 3 にしかなく、epub-builder も EPUB 2.0.1 ではこれを書かない（epub-builder の [ADR 0003](https://github.com/tett23/epub-builder/blob/main/docs/adr/0003-epub-2-0-1-and-3-0-output.md)）。
 
 ## 実装すること
 

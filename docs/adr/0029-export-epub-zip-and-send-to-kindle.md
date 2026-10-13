@@ -5,7 +5,7 @@
 ## 文脈
 
 EPUB は epub-builder を子プロセスとして起動して作る（[ADR 0021](0021-epub-via-epub-builder-process.md)）。渡すデータの形は、epub-builder のインターフェースが決まったときに決めることにしていた。
-epub-builder は、決まった形に並べたディレクトリ（`book.toml`、`body/`、`assets/`）から EPUB を作るコマンド `epub-builder build` を持つようになった（epub-builder の [ADR 0014](0014-subscriptions-json-and-environment-directories.md)、[ADR 0017](0017-initial-schema.md)）。
+epub-builder は、決まった形に並べたディレクトリ（`book.toml`、`body/`、`assets/`）から EPUB を作るコマンド `epub-builder build` を持つようになった（epub-builder の [ADR 0014](https://github.com/tett23/epub-builder/blob/main/docs/adr/0014-back-matter.md)、[ADR 0017](https://github.com/tett23/epub-builder/blob/main/docs/adr/0017-command-line-interface-build-all-by-default.md)）。
 Kindle への送信は send-to-kindle を子プロセスとして起動して行い（[ADR 0027](0027-send-to-kindle-process.md)）、`.env` を `-e` で渡せる（[ADR 0028](0028-send-to-kindle-env-files.md)）。Kindle に送る EPUB は 3.0 とした（[ADR 0026](0026-kindle-epub-version-3.md)）。
 作品のページ、話のページ、latest には、download zip、download epub、send to Kindle のボタンを押せない状態で置いていた（[ADR 0011](0011-gui-screens-after-kindlize.md)、[ADR 0025](0025-drop-mobi-and-per-episode-buttons.md)）。
 

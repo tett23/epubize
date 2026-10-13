@@ -5,7 +5,7 @@
 ## 文脈
 
 Kindle への送信は send-to-kindle を子プロセスとして起動して行う（[ADR 0027](0027-send-to-kindle-process.md)）。
-send-to-kindle は、送信元と送り先のメールアドレス、SMTP の設定を、`-e`（`--env-file`）で渡したファイルから読む。渡さなければカレントディレクトリの `.env` から、それもなければ環境変数から読む。`-e` で渡したファイルがなければ誤りにする（send-to-kindle のある dotfiles の [ADR 0022](0022-development-infrastructure.md)）。
+send-to-kindle は、送信元と送り先のメールアドレス、SMTP の設定を、`-e`（`--env-file`）で渡したファイルから読む。渡さなければカレントディレクトリの `.env` から、それもなければ環境変数から読む。`-e` で渡したファイルがなければ誤りにする（send-to-kindle のある dotfiles の [ADR 0022](https://github.com/tett23/dotfiles/blob/master/docs/adr/0022-send-to-kindle-env-file-option.md)）。
 `.env` にはパスワードを書くため、epubize の画面に値を出したくない。一方で、設定が足りないことは送る前に分かりたい。
 利用者の求めで、`.env` と `.env.example` のパスを管理画面で指定できるようにする。
 
