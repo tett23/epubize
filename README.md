@@ -175,13 +175,15 @@ epubize は同じ正規化を重ねず、そのまま EPUB に使う。
 
 ## 開発
 
-コミット済みの ADR の変更は、[adr-guard](https://github.com/tett23/adr-guard) で拒否する([ADR 0002](docs/adr/0002-immutable-adrs.md)、[ADR 0035](docs/adr/0035-use-external-adr-guard.md))。
+コミット済みの ADR の変更は、[adr-guard](https://github.com/tett23/adr-guard) で拒否する([ADR 0002](docs/adr/0002-immutable-adrs.md)、[ADR 0035](docs/adr/0035-use-external-adr-guard.md)、[ADR 0036](docs/adr/0036-adr-guard-v0-8-0.md))。
 変えてよいのは、ステータスの行と、ADR の参照のリンクだけである。文書の中の ADR の参照(`ADR 0001` の形)には、ADR のファイルへのリンクを付ける。
+ADR は、行頭が `ステータス:` の行をちょうど1つ持つ。`adr-guard check-status` で確かめられる。
+監査や計測の記録(`docs/audit/` と `docs/benchmarks/` 以下)も、コミットした後は変更・削除・移動できない。直す場合は新しい記録を作る。
 
 adr-guard を入れる。[Releases](https://github.com/tett23/adr-guard/releases) のバイナリを PATH に置いてもよい。
 
 ```bash
-cargo install --git https://github.com/tett23/adr-guard --tag v0.5.0
+cargo install --git https://github.com/tett23/adr-guard --tag v0.8.0
 ```
 
 clone した後に一度、git の pre-commit hook を有効にする。adr-guard がないと、hook はコミットを拒否する。
@@ -192,7 +194,7 @@ git config core.hooksPath .githooks
 
 リンクのない ADR の参照は、`adr-guard links` で調べ、`adr-guard links --fix` でリンクにできる。
 Claude Code の hook(`adr-guard claude-hook --allow-status`)は、リポジトリではなく全体の設定(`~/.claude/settings.json`)で有効にする。
-CI でも、push と pull request の範囲のコミットを adr-guard で検査する。
+CI でも、push と pull request の範囲のコミットを adr-guard で検査し、リンクとステータスの行も検査する。
 
 GUI は Tauri + React + TypeScript で、パッケージ管理は pnpm を使う([ADR 0006](docs/adr/0006-react-typescript-pnpm-frontend.md))。
 Node.js、pnpm、Rust が必要になる。
