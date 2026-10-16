@@ -21,8 +21,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      # コミット済みの ADR と記録の変更、リンクのない ADR の参照、ステータスの行の数を検査する（ADR 0035、ADR 0036、ADR 0037）
-      - uses: tett23/adr-guard@v0.8.1
+      # コミット済みの ADR と記録の変更、リンクのない ADR の参照、ステータスの行の数を検査する（ADR 0035、ADR 0036、ADR 0037、ADR 0038）
+      - uses: tett23/adr-guard@v0.8.2
         with:
           base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           head: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
