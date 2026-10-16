@@ -175,15 +175,15 @@ epubize は同じ正規化を重ねず、そのまま EPUB に使う。
 
 ## 開発
 
-コミット済みの ADR の変更は、[adr-guard](https://github.com/tett23/adr-guard) で拒否する([ADR 0002](docs/adr/0002-immutable-adrs.md)、[ADR 0035](docs/adr/0035-use-external-adr-guard.md)、[ADR 0036](docs/adr/0036-adr-guard-v0-8-0.md)、[ADR 0037](docs/adr/0037-adr-guard-v0-8-1.md))。
-変えてよいのは、ステータスの行と、ADR の参照のリンクだけである。文書の中の ADR の参照(`ADR 0001` の形)には、ADR のファイルへのリンクを付ける。
+コミット済みの ADR の変更は、[adr-guard](https://github.com/tett23/adr-guard) で拒否する([ADR 0002](docs/adr/0002-immutable-adrs.md)、[ADR 0035](docs/adr/0035-use-external-adr-guard.md)、[ADR 0036](docs/adr/0036-adr-guard-v0-8-0.md)、[ADR 0037](docs/adr/0037-adr-guard-v0-8-1.md)、[ADR 0038](docs/adr/0038-adr-guard-v0-8-2.md))。
+変えてよいのは、ステータスの行と、リンクだけの変更(リンクの追加・削除・リンク先の変更)である。リンクのテキストの変更は許さない。文書の中の ADR の参照(`ADR 0001` の形)には、ADR のファイルへのリンクを付ける。
 ADR は、行頭が `ステータス:` の行をちょうど1つ持つ。`adr-guard check-status` で確かめられる。
 監査や計測の記録(`docs/audit/`、`docs/audits/`、`docs/benchmarks/`、`docs/benchmark/` 以下)も、コミットした後は変更・削除・移動できない。直す場合は新しい記録を作る。
 
 adr-guard を入れる。[Releases](https://github.com/tett23/adr-guard/releases) のバイナリを PATH に置いてもよい。
 
 ```bash
-cargo install --git https://github.com/tett23/adr-guard --tag v0.8.1
+cargo install --git https://github.com/tett23/adr-guard --tag v0.8.2
 ```
 
 clone した後に一度、git の pre-commit hook を有効にする。adr-guard がないと、hook はコミットを拒否する。
