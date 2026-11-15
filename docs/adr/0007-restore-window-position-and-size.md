@@ -1,6 +1,6 @@
 # ADR 0007: メインウィンドウの位置と大きさを記録して次の起動時に戻し、画面に収まらなければ既定の位置に出す
 
-ステータス: 採択→[ADR 0014](0014-subscriptions-json-and-environment-directories.md)
+Status: superseded [{"by":["docs/adr/0014-subscriptions-json-and-environment-directories.md"],"part":null}]
 
 ## 文脈
 

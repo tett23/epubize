@@ -1,6 +1,6 @@
 # ADR 0026: Kindle に送る EPUB は 3.0 で作る
 
-ステータス: 採択
+Status: accepted
 
 ## 文脈
 

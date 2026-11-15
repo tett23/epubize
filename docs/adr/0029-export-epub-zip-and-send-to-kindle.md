@@ -1,6 +1,6 @@
 # ADR 0029: epub-builder のプロジェクトを作って EPUB と zip を書き出し、send-to-kindle で Kindle に送る
 
-ステータス: 採択→[ADR 0030](0030-remove-empty-line-as-paragraph-margin.md)、[ADR 0034](0034-primary-writing-mode-by-epub-builder.md)
+Status: superseded [{"by":["docs/adr/0030-remove-empty-line-as-paragraph-margin.md","docs/adr/0034-primary-writing-mode-by-epub-builder.md"],"part":null}]
 
 ## 文脈
 

@@ -1,6 +1,6 @@
 # ADR 0035: コミット済みの ADR の検査を、外部の adr-guard に置き換え、CI でも検査する
 
-ステータス: 採択→[ADR 0036](0036-adr-guard-v0-8-0.md)
+Status: superseded [{"by":["docs/adr/0036-adr-guard-v0-8-0.md"],"part":null}]
 
 ## 文脈
 

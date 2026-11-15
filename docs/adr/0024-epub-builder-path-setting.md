@@ -1,6 +1,6 @@
 # ADR 0024: 管理画面で epub-builder の実行ファイルを指定し、指定がなければ PATH などから探す
 
-ステータス: 採択→[ADR 0029](0029-export-epub-zip-and-send-to-kindle.md)
+Status: superseded [{"by":["docs/adr/0029-export-epub-zip-and-send-to-kindle.md"],"part":null}]
 
 ## 文脈
 

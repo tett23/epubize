@@ -1,6 +1,6 @@
 # ADR 0025: mobi への対応をやめ、作品のページの話ごとに download epub と send to Kindle を置く
 
-ステータス: 採択→[ADR 0029](0029-export-epub-zip-and-send-to-kindle.md)、[ADR 0032](0032-download-mobi-with-kindlegen-and-striptool.md)
+Status: superseded [{"by":["docs/adr/0029-export-epub-zip-and-send-to-kindle.md","docs/adr/0032-download-mobi-with-kindlegen-and-striptool.md"],"part":null}]
 
 ## 文脈
 

@@ -1,6 +1,6 @@
 # ADR 0013: SQLite のマイグレーションを rusqlite と自前の仕組みで行い、起動時に自動で適用し、mise のタスクからも実行する
 
-ステータス: 採択→[ADR 0014](0014-subscriptions-json-and-environment-directories.md)
+Status: superseded [{"by":["docs/adr/0014-subscriptions-json-and-environment-directories.md"],"part":null}]
 
 ## 文脈
 

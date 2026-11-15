@@ -1,6 +1,6 @@
 # ADR 0028: send-to-kindle の .env と .env.example は既定でアプリ用データ領域に置き、管理画面で場所を変えられるようにし、.env に足りないキーを表示する
 
-ステータス: 採択
+Status: accepted
 
 ## 文脈
 

@@ -1,6 +1,6 @@
 # ADR 0008: スタイルは Tailwind CSS で書く
 
-ステータス: 採択
+Status: accepted
 
 ## 文脈
 

@@ -366,10 +366,10 @@ epub-builder の [ADR 0019](https://github.com/tett23/epub-builder/blob/main/doc
 ## 14. 開発
 
 - 検査とテストは README の「開発」にある。フロントエンドは Biome、vitest、Playwright（Tauri のコマンドとイベントを偽物に差し替えて Vite の開発サーバーに対して動かす）、Rust は rustfmt、clippy、cargo test で行う（[ADR 0022](adr/0022-development-infrastructure.md)）
-- CI は `main` への push と pull request で、ADR、Frontend、E2E、Tauri（ubuntu-24.04 と macos-15）のジョブを並列に動かす。ADR のジョブは、adr-guard の composite action（`tett23/adr-guard@v0.10.0`）で、範囲のコミットを `check-range --allow-status --allow-links` で検査し、`links` でリンクのない ADR の参照を、`check-status` でステータスの行の数を、`check-numbers` で同じディレクトリの ADR の番号の重複を検査する（[ADR 0035](adr/0035-use-external-adr-guard.md)、[ADR 0036](adr/0036-adr-guard-v0-8-0.md)、[ADR 0037](adr/0037-adr-guard-v0-8-1.md)、[ADR 0038](adr/0038-adr-guard-v0-8-2.md)、[ADR 0039](adr/0039-adr-guard-v0-8-3.md)、[ADR 0040](adr/0040-adr-guard-v0-10-0.md)）
+- CI は `main` への push と pull request で、ADR、Frontend、E2E、Tauri（ubuntu-24.04 と macos-15）のジョブを並列に動かす。ADR のジョブは、adr-guard の composite action（`tett23/adr-guard@v0.13.1`）で、範囲のコミットを `check-range --allow-status --allow-links` で検査し、`links` でリンクのない ADR の参照を、`check-status` でステータスの行の数を、`check-numbers` で同じディレクトリの ADR の番号の重複を検査する（[ADR 0035](adr/0035-use-external-adr-guard.md)、[ADR 0036](adr/0036-adr-guard-v0-8-0.md)、[ADR 0037](adr/0037-adr-guard-v0-8-1.md)、[ADR 0038](adr/0038-adr-guard-v0-8-2.md)、[ADR 0039](adr/0039-adr-guard-v0-8-3.md)、[ADR 0040](adr/0040-adr-guard-v0-10-0.md)、[ADR 0041](adr/0041-adr-guard-v0-13-1.md)）。pre-commit hook と CI の `check-range` は、ADR のステータスの状態遷移も検査する（[ADR 0041](adr/0041-adr-guard-v0-13-1.md)）
 - `v` で始まるタグを push すると、macOS 向けの `.app` と `.dmg` を作り、下書きの GitHub Release に添付する（署名なし）
-- コミット済みの ADR は、`ステータス:` の行とリンクだけの変更（リンクの追加・削除・リンク先の変更。リンクのテキストの変更は含まない）を除いて変更できない。[adr-guard](https://github.com/tett23/adr-guard) を git の pre-commit hook（`adr-guard pre-commit --allow-status --allow-links`）と CI で使って強制する。Claude Code の hook は、リポジトリではなく利用者の全体の設定に置く（[ADR 0002](adr/0002-immutable-adrs.md)、[ADR 0035](adr/0035-use-external-adr-guard.md)、[ADR 0038](adr/0038-adr-guard-v0-8-2.md)）
-- ADR は、行頭が `ステータス:` の行をちょうど1つ持つ。無い ADR と2つ以上ある ADR は、pre-commit hook と CI の `check-status` で拒否する（[ADR 0036](adr/0036-adr-guard-v0-8-0.md)）
+- コミット済みの ADR は、`Status:` の行とリンクだけの変更（リンクの追加・削除・リンク先の変更。リンクのテキストの変更は含まない）を除いて変更できない。[adr-guard](https://github.com/tett23/adr-guard) を git の pre-commit hook（`adr-guard pre-commit --allow-status --allow-links`）と CI で使って強制する。Claude Code の hook は、リポジトリではなく利用者の全体の設定に置く（[ADR 0002](adr/0002-immutable-adrs.md)、[ADR 0035](adr/0035-use-external-adr-guard.md)、[ADR 0038](adr/0038-adr-guard-v0-8-2.md)）
+- ADR は、行頭が `Status:` の行をちょうど1つ持つ。無い ADR と2つ以上ある ADR は、pre-commit hook と CI の `check-status` で拒否する（[ADR 0036](adr/0036-adr-guard-v0-8-0.md)）
 - 監査や計測の記録（どの深さの `docs/` でも、`docs/audit/`、`docs/audits/`、`docs/benchmarks/`、`docs/benchmark/` 以下のファイル）も、コミットした後は変更・削除・移動できない。`--allow-status` と `--allow-links` は記録には効かない。直す場合は新しい記録を作る（[ADR 0036](adr/0036-adr-guard-v0-8-0.md)、[ADR 0037](adr/0037-adr-guard-v0-8-1.md)、[ADR 0038](adr/0038-adr-guard-v0-8-2.md)）
 - 文書（`.md`）の中の ADR の参照（`ADR 0001` の形）には、ADR のファイルへのリンクを付ける。ほかのリポジトリの ADR への参照は、そのリポジトリの ADR にリンクする
 - テストのデータは全て合成したもので、Web 小説の本文などの著作物を含まない
@@ -389,39 +389,42 @@ epub-builder の [ADR 0019](https://github.com/tett23/epub-builder/blob/main/doc
 
 ## 16. ADR の状態
 
-ADR のステータスは、`採択`、`採択（未実装）`、`採択→<変更した ADR>`、`提案`、`却下` のいずれかとする。
-採択したがまだ実装していない ADR は `採択（未実装）` とし、実装したら `採択` にする。`採択（未実装）` の ADR は `adr-guard unimplemented` で一覧できる（[ADR 0039](adr/0039-adr-guard-v0-8-3.md)）。
-ステータスは、各 ADR の行頭の `ステータス:` の行（ちょうど1つ）に書く。
-後の ADR で決定の全部または一部を変えた ADR は、`採択→ADR NNNN` とする。
+ステータスは、各 ADR の 3 行目の `Status:` の行（ちょうど1つ）に書く（[ADR 0041](adr/0041-adr-guard-v0-13-1.md)）。
+値は `proposed`（提案）、`accepted-pending`（採択したがまだ実装していない）、`accepted`（採択して実装した）、`superseded [...]`（後の ADR で決定の全部または一部を変えた）、`rejected`（却下）のいずれかとする。
+新しい ADR は、レビューを受けたあと `proposed` で一度コミットし、続くコミットで `accepted-pending` か `accepted` にする。
+`accepted-pending` の ADR は、実装したら `accepted` にする。`accepted-pending` の ADR は `adr-guard unimplemented` で一覧できる（[ADR 0039](adr/0039-adr-guard-v0-8-3.md)）。
+後の ADR で決定の全部または一部を変えた ADR は、`superseded [{"part":null,"by":["docs/adr/NNNN-….md"]}]` とし、変えた内容は下の表に書く。
+pre-commit hook と CI は、ステータスの状態遷移を検査する。
 ADR を破棄したときは、破棄した経緯と理由をこの節に書き、その連番は欠番とする。
 
 後の ADR で変えた ADR は次のとおりである。
 
-| ADR  | ステータス                | 変えた内容                                                                                  |
+| ADR  | 変えた ADR                | 変えた内容                                                                                  |
 | ---- | ------------------------- | ------------------------------------------------------------------------------------------- |
-| 0002 | 採択→[ADR 0035](adr/0035-use-external-adr-guard.md) | 判定を `scripts/adr-guard.ts` に置くこと、Bash の実行後の検査、Claude Code の hook をリポジトリに置くこと、ADR の参照のリンクだけの変更も許さないこと |
-| 0005 | 採択→[ADR 0009](adr/0009-normalized-markdown-conventions.md)             | 本文の Markdown の規約の一部                                                                |
-| 0006 | 採択→[ADR 0035](adr/0035-use-external-adr-guard.md) | hook のために開発環境に Deno が要ること |
-| 0007 | 採択→[ADR 0014](adr/0014-subscriptions-json-and-environment-directories.md)             | ウィンドウの記録の置き場所                                                                  |
-| 0010 | 採択→[ADR 0012](adr/0012-github-actions-ci-with-frontend-tests.md)             | 全体（CI に vitest を足した）                                                               |
-| 0011 | 採択→[ADR 0017](adr/0017-initial-schema.md)、[ADR 0025](adr/0025-drop-mobi-and-per-episode-buttons.md)、[ADR 0029](adr/0029-export-epub-zip-and-send-to-kindle.md) | 整形の設定を保存しないこと（0017）、download mobi のボタン（0025）、押せないボタン（0029） |
-| 0012 | 採択→[ADR 0022](adr/0022-development-infrastructure.md)             | 全体（CI に Biome、Playwright、macOS を足した）                                             |
-| 0013 | 採択→[ADR 0014](adr/0014-subscriptions-json-and-environment-directories.md)             | データベースの置き場所                                                                      |
-| 0014 | 採択→[ADR 0018](adr/0018-import-and-database-backed-screens.md)             | 作品の一覧を合成データから読むこと                                                          |
-| 0016 | 採択→[ADR 0018](adr/0018-import-and-database-backed-screens.md)             | クローラーの探し方                                                                          |
-| 0018 | 採択→[ADR 0020](adr/0020-settings-screen.md)、[ADR 0029](adr/0029-export-epub-zip-and-send-to-kindle.md)   | クローラーの探し方（0020）、download と send to Kindle を押せないまま置くこと（0029）       |
-| 0019 | 採択→[ADR 0020](adr/0020-settings-screen.md)             | 決め打ちの時刻                                                                              |
-| 0022 | 採択→[ADR 0035](adr/0035-use-external-adr-guard.md) | CI の ADR guard のジョブの中身と、ADR の変更を CI で検査しないこと |
-| 0024 | 採択→[ADR 0029](adr/0029-export-epub-zip-and-send-to-kindle.md)             | EPUB の生成がまだないと管理画面に書くこと                                                   |
-| 0025 | 採択→[ADR 0029](adr/0029-export-epub-zip-and-send-to-kindle.md)、[ADR 0032](adr/0032-download-mobi-with-kindlegen-and-striptool.md)   | ボタンを押せないまま置くこと（0029）、mobi への対応をやめること（0032）                     |
-| 0027 | 採択→[ADR 0029](adr/0029-export-epub-zip-and-send-to-kindle.md)             | send-to-kindle を起動しないこと                                                             |
-| 0029 | 採択→[ADR 0030](adr/0030-remove-empty-line-as-paragraph-margin.md)、[ADR 0034](adr/0034-primary-writing-mode-by-epub-builder.md)   | 整形の設定の removeEmptyLine を使わないこと（0030）、`primary-writing-mode` を書かないこと（0034） |
-| 0032 | 採択→[ADR 0034](adr/0034-primary-writing-mode-by-epub-builder.md)             | `primary-writing-mode` を書かないこと                                                       |
-| 0033 | 採択→[ADR 0034](adr/0034-primary-writing-mode-by-epub-builder.md)             | `primary-writing-mode` を書かないこと                                                       |
-| 0035 | 採択→[ADR 0036](adr/0036-adr-guard-v0-8-0.md) | adr-guard の版（v0.5.0） |
-| 0036 | 採択→[ADR 0037](adr/0037-adr-guard-v0-8-1.md) | adr-guard の版（v0.8.0） |
-| 0037 | 採択→[ADR 0038](adr/0038-adr-guard-v0-8-2.md) | adr-guard の版（v0.8.1） |
-| 0038 | 採択→[ADR 0039](adr/0039-adr-guard-v0-8-3.md) | adr-guard の版（v0.8.2） |
-| 0039 | 採択→[ADR 0040](adr/0040-adr-guard-v0-10-0.md) | adr-guard の版（v0.8.3） |
+| 0002 | [ADR 0035](adr/0035-use-external-adr-guard.md) | 判定を `scripts/adr-guard.ts` に置くこと、Bash の実行後の検査、Claude Code の hook をリポジトリに置くこと、ADR の参照のリンクだけの変更も許さないこと |
+| 0005 | [ADR 0009](adr/0009-normalized-markdown-conventions.md)             | 本文の Markdown の規約の一部                                                                |
+| 0006 | [ADR 0035](adr/0035-use-external-adr-guard.md) | hook のために開発環境に Deno が要ること |
+| 0007 | [ADR 0014](adr/0014-subscriptions-json-and-environment-directories.md)             | ウィンドウの記録の置き場所                                                                  |
+| 0010 | [ADR 0012](adr/0012-github-actions-ci-with-frontend-tests.md)             | 全体（CI に vitest を足した）                                                               |
+| 0011 | [ADR 0017](adr/0017-initial-schema.md)、[ADR 0025](adr/0025-drop-mobi-and-per-episode-buttons.md)、[ADR 0029](adr/0029-export-epub-zip-and-send-to-kindle.md) | 整形の設定を保存しないこと（0017）、download mobi のボタン（0025）、押せないボタン（0029） |
+| 0012 | [ADR 0022](adr/0022-development-infrastructure.md)             | 全体（CI に Biome、Playwright、macOS を足した）                                             |
+| 0013 | [ADR 0014](adr/0014-subscriptions-json-and-environment-directories.md)             | データベースの置き場所                                                                      |
+| 0014 | [ADR 0018](adr/0018-import-and-database-backed-screens.md)             | 作品の一覧を合成データから読むこと                                                          |
+| 0016 | [ADR 0018](adr/0018-import-and-database-backed-screens.md)             | クローラーの探し方                                                                          |
+| 0018 | [ADR 0020](adr/0020-settings-screen.md)、[ADR 0029](adr/0029-export-epub-zip-and-send-to-kindle.md)   | クローラーの探し方（0020）、download と send to Kindle を押せないまま置くこと（0029）       |
+| 0019 | [ADR 0020](adr/0020-settings-screen.md)             | 決め打ちの時刻                                                                              |
+| 0022 | [ADR 0035](adr/0035-use-external-adr-guard.md) | CI の ADR guard のジョブの中身と、ADR の変更を CI で検査しないこと |
+| 0024 | [ADR 0029](adr/0029-export-epub-zip-and-send-to-kindle.md)             | EPUB の生成がまだないと管理画面に書くこと                                                   |
+| 0025 | [ADR 0029](adr/0029-export-epub-zip-and-send-to-kindle.md)、[ADR 0032](adr/0032-download-mobi-with-kindlegen-and-striptool.md)   | ボタンを押せないまま置くこと（0029）、mobi への対応をやめること（0032）                     |
+| 0027 | [ADR 0029](adr/0029-export-epub-zip-and-send-to-kindle.md)             | send-to-kindle を起動しないこと                                                             |
+| 0029 | [ADR 0030](adr/0030-remove-empty-line-as-paragraph-margin.md)、[ADR 0034](adr/0034-primary-writing-mode-by-epub-builder.md)   | 整形の設定の removeEmptyLine を使わないこと（0030）、`primary-writing-mode` を書かないこと（0034） |
+| 0032 | [ADR 0034](adr/0034-primary-writing-mode-by-epub-builder.md)             | `primary-writing-mode` を書かないこと                                                       |
+| 0033 | [ADR 0034](adr/0034-primary-writing-mode-by-epub-builder.md)             | `primary-writing-mode` を書かないこと                                                       |
+| 0035 | [ADR 0036](adr/0036-adr-guard-v0-8-0.md) | adr-guard の版（v0.5.0） |
+| 0036 | [ADR 0037](adr/0037-adr-guard-v0-8-1.md) | adr-guard の版（v0.8.0） |
+| 0037 | [ADR 0038](adr/0038-adr-guard-v0-8-2.md) | adr-guard の版（v0.8.1） |
+| 0038 | [ADR 0039](adr/0039-adr-guard-v0-8-3.md) | adr-guard の版（v0.8.2） |
+| 0039 | [ADR 0040](adr/0040-adr-guard-v0-10-0.md) | adr-guard の版（v0.8.3） |
+| 0040 | [ADR 0041](adr/0041-adr-guard-v0-13-1.md) | adr-guard の版（v0.10.0） |
 
 破棄した ADR はない。
