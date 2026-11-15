@@ -1,6 +1,6 @@
 # ADR 0021: EPUB は epub-builder を子プロセスとして起動して作る
 
-ステータス: 採択
+Status: accepted
 
 ## 文脈
 

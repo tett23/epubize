@@ -1,6 +1,6 @@
 # ADR 0011: GUI の画面を kindlize の画面にならって作り、まず合成データで画面だけを実装する
 
-ステータス: 採択→[ADR 0017](0017-initial-schema.md)、[ADR 0025](0025-drop-mobi-and-per-episode-buttons.md)、[ADR 0029](0029-export-epub-zip-and-send-to-kindle.md)
+Status: superseded [{"by":["docs/adr/0017-initial-schema.md","docs/adr/0025-drop-mobi-and-per-episode-buttons.md","docs/adr/0029-export-epub-zip-and-send-to-kindle.md"],"part":null}]
 
 ## 文脈
 

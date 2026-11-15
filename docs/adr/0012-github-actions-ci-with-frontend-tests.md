@@ -1,6 +1,6 @@
 # ADR 0012: GitHub Actions の CI で、フロントエンドの単体テストも行う
 
-ステータス: 採択→[ADR 0022](0022-development-infrastructure.md)
+Status: superseded [{"by":["docs/adr/0022-development-infrastructure.md"],"part":null}]
 
 ## 文脈
 

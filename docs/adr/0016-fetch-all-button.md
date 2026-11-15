@@ -1,6 +1,6 @@
 # ADR 0016: fetch all のボタンで購読の全作品の目次を積み、取得の結果はまだ保存せず画面に知らせる
 
-ステータス: 採択→[ADR 0018](0018-import-and-database-backed-screens.md)
+Status: superseded [{"by":["docs/adr/0018-import-and-database-backed-screens.md"],"part":null}]
 
 ## 文脈
 

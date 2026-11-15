@@ -1,6 +1,6 @@
 # ADR 0030: 整形の設定の removeEmptyLine を、EPUB とプレビューの段落の余白で反映する
 
-ステータス: 採択
+Status: accepted
 
 ## 文脈
 

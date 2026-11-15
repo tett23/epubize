@@ -1,6 +1,6 @@
 # ADR 0014: 購読している作品を novels.json に持ち、データの置き場所を development と production に分ける
 
-ステータス: 採択→[ADR 0018](0018-import-and-database-backed-screens.md)
+Status: superseded [{"by":["docs/adr/0018-import-and-database-backed-screens.md"],"part":null}]
 
 ## 文脈
 

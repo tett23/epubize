@@ -1,6 +1,6 @@
 # ADR 0010: GitHub Actions で、ADR の hook のテスト、フロントエンドのビルド、Rust の検査とテストを行う
 
-ステータス: 採択→[ADR 0012](0012-github-actions-ci-with-frontend-tests.md)
+Status: superseded [{"by":["docs/adr/0012-github-actions-ci-with-frontend-tests.md"],"part":null}]
 
 ## 文脈
 

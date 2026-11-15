@@ -1,6 +1,6 @@
 # ADR 0019: アプリが動いている間、毎日 3 時に fetch all を行う
 
-ステータス: 採択→[ADR 0020](0020-settings-screen.md)
+Status: superseded [{"by":["docs/adr/0020-settings-screen.md"],"part":null}]
 
 ## 文脈
 

@@ -1,6 +1,6 @@
 # ADR 0003: GUI を Tauri で作り、データを epubize の SQLite に持つ
 
-ステータス: 採択
+Status: accepted
 
 ## 文脈
 

@@ -1,6 +1,6 @@
 # ADR 0005: クローラーとのデータの受け渡しを、標準出力の JSON Lines（v1）で行う
 
-ステータス: 採択→[ADR 0009](0009-normalized-markdown-conventions.md)
+Status: superseded [{"by":["docs/adr/0009-normalized-markdown-conventions.md"],"part":null}]
 
 ## 文脈
 

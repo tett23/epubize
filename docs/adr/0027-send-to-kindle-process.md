@@ -1,6 +1,6 @@
 # ADR 0027: Kindle への送信は send-to-kindle を子プロセスとして起動して行い、その実行ファイルを管理画面で指定する
 
-ステータス: 採択→[ADR 0029](0029-export-epub-zip-and-send-to-kindle.md)
+Status: superseded [{"by":["docs/adr/0029-export-epub-zip-and-send-to-kindle.md"],"part":null}]
 
 ## 文脈
 

@@ -1,6 +1,6 @@
 # ADR 0034: Kindle の primary-writing-mode は、epub-builder が頁送りの向きから書くのに任せる
 
-ステータス: 採択
+Status: accepted
 
 ## 文脈
 
